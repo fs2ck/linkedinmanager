@@ -34,7 +34,7 @@ Crie o post:`;
 
         try {
             const response = await groqClient.post('', {
-                model: 'llama-3.1-70b-versatile',
+                model: 'llama-3.3-70b-versatile',
                 messages: [
                     { role: 'system', content: 'Você é um especialista em criação de conteúdo para LinkedIn, focado em gerar posts que engajam e agregam valor.' },
                     { role: 'user', content: prompt }
@@ -146,7 +146,7 @@ Retorne apenas as hashtags, separadas por espaço, no formato #hashtag.`;
     async chatWithAgent({ messages, systemPrompt }) {
         try {
             const response = await groqClient.post('', {
-                model: 'llama-3.1-70b-versatile',
+                model: 'llama-3.1-8b-instant',
                 messages: [
                     { role: 'system', content: systemPrompt || 'Você é um assistente especializado em criação de conteúdo para LinkedIn.' },
                     ...messages
