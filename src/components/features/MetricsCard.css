@@ -1,0 +1,94 @@
+.metrics-card {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-base);
+}
+
+.metrics-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.metrics-card-gradient {
+    background: var(--gradient-primary);
+    color: var(--color-white);
+    border: none;
+}
+
+.metrics-card-dark {
+    background: var(--gradient-dark);
+    color: var(--color-white);
+    border: none;
+}
+
+.metrics-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.metrics-card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.metrics-card-default .metrics-card-icon {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--color-primary-600);
+}
+
+.metrics-card-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    opacity: 0.9;
+}
+
+.metrics-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.metrics-card-value {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+}
+
+.metrics-card-change {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.metrics-card-change.positive {
+    color: var(--color-success);
+}
+
+.metrics-card-change.negative {
+    color: var(--color-danger);
+}
+
+.metrics-card-gradient .metrics-card-change.positive,
+.metrics-card-dark .metrics-card-change.positive {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.metrics-card-gradient .metrics-card-change.negative,
+.metrics-card-dark .metrics-card-change.negative {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.change-icon {
+    font-size: var(--font-size-lg);
+}
