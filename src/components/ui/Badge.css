@@ -30,28 +30,21 @@
 }
 
 .badge-primary {
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(99, 102, 241, 0.08);
     color: var(--color-primary-600);
+    border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .badge-success {
-    background: var(--color-success-light);
-    color: #065F46;
+    background: rgba(16, 185, 129, 0.08);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badge-warning {
-    background: var(--color-warning-light);
-    color: #92400E;
-}
-
-.badge-danger {
-    background: var(--color-danger-light);
-    color: #991B1B;
-}
-
-.badge-info {
-    background: var(--color-info-light);
-    color: #1E40AF;
+    background: rgba(245, 158, 11, 0.08);
+    color: #D97706;
+    border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 /* Dot Indicator */

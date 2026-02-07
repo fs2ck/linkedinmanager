@@ -1,10 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Dashboard from './pages/Dashboard';
+import Planner from './pages/Planner';
 import DraftStudio from './pages/DraftStudio';
 import PostEditor from './pages/PostEditor';
 import './styles/global.css';
 import React from 'react';
+// ... (omitting ErrorBoundary lines for brevity, but I must match target)
+// Wait, I should replace exactly what is in the file.
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -62,7 +65,7 @@ export default function App() {
         />
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/planner" element={<Dashboard />} />
+          <Route path="/planner" element={<Planner />} />
           <Route path="/drafts" element={<DraftStudio />} />
           <Route path="/editor" element={<PostEditor />} />
           <Route path="/publish" element={<Dashboard />} />

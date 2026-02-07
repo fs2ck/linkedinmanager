@@ -70,7 +70,7 @@ export default function Dashboard() {
                 </>
             }
         >
-            <div className="dashboard-grid">
+            <div className="dashboard-page-container">
                 {/* Metrics Cards */}
                 <div className="metrics-row">
                     <MetricsCard
@@ -108,6 +108,7 @@ export default function Dashboard() {
                             dataKey="value"
                             xKey="name"
                             title="Engajamento Semanal"
+                            fullHeight
                         />
                     </div>
                     <div className="chart-col-small">

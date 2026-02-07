@@ -131,4 +131,62 @@ export const storageService = {
         if (error) throw error;
         return data;
     },
+
+    // Content Planner
+    async getActiveCycle() {
+        const { data, error } = await supabase
+            .from('planning_cycles')
+            .select('*')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async createCycle(cycleData) {
+        const { data, error } = await supabase
+            .from('planning_cycles')
+            .insert([cycleData])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async getPlannedPosts(cycleId) {
+        const { data, error } = await supabase
+            .from('planned_posts')
+            .select('*')
+            .eq('cycle_id', cycleId)
+            .order('date', { ascending: true });
+
+        if (error) throw error;
+        return data;
+    },
+
+    async createPlannedPosts(posts) {
+        const { data, error } = await supabase
+            .from('planned_posts')
+            .insert(posts)
+            .select();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updatePlannedPost(id, updates) {
+        const { data, error } = await supabase
+            .from('planned_posts')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
 };

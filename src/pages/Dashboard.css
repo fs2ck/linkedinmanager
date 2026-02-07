@@ -1,34 +1,43 @@
-.dashboard-grid {
+.dashboard-page-container {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-xl);
+    gap: 3rem;
+    padding-bottom: 3rem;
 }
 
 .metrics-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2.5rem;
 }
 
 .charts-row {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: var(--spacing-lg);
+    gap: 2.5rem;
+    align-items: stretch;
 }
 
 .chart-col-large,
 .chart-col-small {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-lg);
+    gap: 2.5rem;
+    height: 100%;
 }
 
 .goal-info {
-    background: var(--bg-primary);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: 2.5rem;
     border: 1px solid var(--border-light);
     text-align: center;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    /* Allow it to grow to fill space in column */
 }
 
 .goal-current {
@@ -51,13 +60,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-lg);
+    padding: 2rem 2.5rem;
     border-bottom: 1px solid var(--border-light);
 }
 
 .card-header-row h3 {
     margin: 0;
-    font-size: var(--font-size-lg);
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.02em;
 }
 
 .posts-table {
@@ -71,17 +82,17 @@
 
 .posts-table th {
     text-align: left;
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: 1.25rem 1.5rem;
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: var(--bg-secondary);
+    background: var(--color-slate-50);
 }
 
 .posts-table td {
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: 1.25rem 1.5rem;
     border-top: 1px solid var(--border-light);
     font-size: var(--font-size-sm);
 }

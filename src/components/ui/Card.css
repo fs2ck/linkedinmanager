@@ -1,69 +1,40 @@
-.card {
-    background: var(--bg-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-base);
-}
-
 /* Padding Variants */
 .card-padding-none {
     padding: 0;
 }
 
 .card-padding-sm {
-    padding: var(--spacing-md);
+    padding: 1.5rem;
 }
 
 .card-padding-md {
-    padding: var(--spacing-lg);
+    padding: 2.5rem;
 }
 
 .card-padding-lg {
-    padding: var(--spacing-xl);
+    padding: 4rem;
 }
 
-/* Card Variants */
-.card-default {
-    background: var(--bg-primary);
+.card {
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    transition: var(--transition-base);
+    overflow: hidden;
 }
 
-.card-gradient {
-    background: var(--gradient-primary);
-    color: var(--color-white);
-    border: none;
-}
-
-.card-dark {
-    background: var(--gradient-dark);
-    color: var(--color-white);
-    border: none;
-}
-
-.card-outline {
-    background: transparent;
-    border: 2px solid var(--border-medium);
-}
-
-/* Interactive States */
 .card-hoverable:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.card-clickable {
-    cursor: pointer;
-}
-
-.card-clickable:active {
-    transform: translateY(0);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+    border-color: var(--color-primary-100);
 }
 
 /* Card Sections */
 .card-header {
-    padding-bottom: var(--spacing-md);
+    padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--border-light);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: 2rem;
 }
 
 .card-body {
@@ -71,9 +42,9 @@
 }
 
 .card-footer {
-    padding-top: var(--spacing-md);
+    padding-top: 1.5rem;
     border-top: 1px solid var(--border-light);
-    margin-top: var(--spacing-md);
+    margin-top: 2rem;
 }
 
 /* Gradient card adjustments */

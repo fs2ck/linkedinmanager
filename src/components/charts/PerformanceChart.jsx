@@ -1,25 +1,27 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './PerformanceChart.css';
 
-export function BarChartComponent({ data, dataKey, xKey, title }) {
+export function BarChartComponent({ data, dataKey, xKey, title, fullHeight = false }) {
     return (
-        <div className="chart-container">
+        <div className={`chart-container ${fullHeight ? 'chart-full-height' : ''}`}>
             {title && <h3 className="chart-title">{title}</h3>}
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                    <XAxis dataKey={xKey} stroke="var(--text-tertiary)" />
-                    <YAxis stroke="var(--text-tertiary)" />
-                    <Tooltip
-                        contentStyle={{
-                            background: 'var(--bg-primary)',
-                            border: '1px solid var(--border-light)',
-                            borderRadius: 'var(--radius-md)',
-                        }}
-                    />
-                    <Bar dataKey={dataKey} fill="var(--color-primary-500)" radius={[8, 8, 0, 0]} />
-                </BarChart>
-            </ResponsiveContainer>
+            <div style={{ flex: fullHeight ? 1 : 'none', minHeight: fullHeight ? 0 : 300 }}>
+                <ResponsiveContainer width="100%" height={fullHeight ? '100%' : 300}>
+                    <BarChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                        <XAxis dataKey={xKey} stroke="var(--text-tertiary)" />
+                        <YAxis stroke="var(--text-tertiary)" />
+                        <Tooltip
+                            contentStyle={{
+                                background: 'var(--bg-primary)',
+                                border: '1px solid var(--border-light)',
+                                borderRadius: 'var(--radius-md)',
+                            }}
+                        />
+                        <Bar dataKey={dataKey} fill="var(--color-primary-500)" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 }
