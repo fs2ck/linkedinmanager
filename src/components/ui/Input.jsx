@@ -1,3 +1,4 @@
+import React from 'react';
 import './Input.css';
 
 export default function Input({
@@ -25,7 +26,15 @@ export default function Input({
         <div className="input-wrapper">
             {label && <label className="input-label">{label}</label>}
             <div className="input-container">
-                {icon && <span className="input-icon">{icon}</span>}
+                {icon && (
+                    <span className="input-icon">
+                        {typeof icon === 'function' || (typeof icon === 'object' && icon.$$typeof) ? (
+                            React.createElement(icon, { size: 18 })
+                        ) : (
+                            icon
+                        )}
+                    </span>
+                )}
                 <input
                     type={type}
                     className={inputClasses}

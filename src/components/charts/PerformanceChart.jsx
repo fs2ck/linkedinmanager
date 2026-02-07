@@ -1,11 +1,11 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './PerformanceChart.css';
 
-export function BarChartComponent({ data, dataKey, xKey, title, fullHeight = false }) {
+export function BarChartComponent({ data, dataKey, xKey, title, fullHeight = false, hideHeader = false }) {
     return (
         <div className={`chart-container ${fullHeight ? 'chart-full-height' : ''}`}>
-            {title && <h3 className="chart-title">{title}</h3>}
-            <div style={{ flex: fullHeight ? 1 : 'none', minHeight: fullHeight ? 0 : 300 }}>
+            {!hideHeader && title && <h3 className="chart-title">{title}</h3>}
+            <div style={{ flex: fullHeight ? 1 : 'none', minHeight: fullHeight ? 0 : 300, width: '100%' }}>
                 <ResponsiveContainer width="100%" height={fullHeight ? '100%' : 300}>
                     <BarChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />

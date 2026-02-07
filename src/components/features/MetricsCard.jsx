@@ -24,7 +24,7 @@ export default function MetricsCard({
                 {change !== undefined && (
                     <div className={`metrics-card-change ${isPositive ? 'positive' : 'negative'}`}>
                         <span className="change-icon">{isPositive ? '↑' : '↓'}</span>
-                        <span>{Math.abs(change)}% vs last month</span>
+                        <span>{Math.abs(change)}% vs mês anterior</span>
                     </div>
                 )}
             </div>

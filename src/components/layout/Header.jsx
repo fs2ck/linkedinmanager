@@ -1,9 +1,13 @@
-import { Search, Download, Share2, Bell } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Download, Share2, Bell, HelpCircle } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
+import GuideModal from '../features/GuideModal';
 import './Header.css';
 
 export default function Header({ title, actions }) {
+    const [isGuideOpen, setIsGuideOpen] = useState(false);
+
     return (
         <header className="header">
             <div className="header-left">
@@ -11,30 +15,32 @@ export default function Header({ title, actions }) {
             </div>
 
             <div className="header-right">
-                <div className="header-search">
-                    <Search size={18} />
-                    <input
-                        type="text"
-                        placeholder="Buscar..."
-                        className="search-input"
-                    />
-                </div>
-
                 {actions && (
                     <div className="header-actions">
                         {actions}
                     </div>
                 )}
 
-                <button className="header-icon-btn">
-                    <Bell size={20} />
-                </button>
+                <div className="header-tools">
+                    <button
+                        className="header-icon-btn"
+                        onClick={() => setIsGuideOpen(true)}
+                        title="Guia de Importação"
+                    >
+                        <HelpCircle size={20} />
+                    </button>
+                </div>
 
                 <Avatar
                     alt="User"
                     size="md"
                 />
             </div>
+
+            <GuideModal
+                isOpen={isGuideOpen}
+                onClose={() => setIsGuideOpen(false)}
+            />
         </header>
     );
 }

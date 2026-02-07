@@ -189,4 +189,45 @@ export const storageService = {
         if (error) throw error;
         return data;
     },
+    // Weekly Goals (Manual)
+    async getWeeklyGoal(userId) {
+        const { data, error } = await supabase
+            .from('weekly_goals')
+            .select('*')
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updateWeeklyGoal(userId, target) {
+        // Try to update existing or insert new
+        const { data: existing } = await supabase
+            .from('weekly_goals')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (existing) {
+            const { data, error } = await supabase
+                .from('weekly_goals')
+                .update({ target_engagement: target, updated_at: new Date() })
+                .eq('id', existing.id)
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        } else {
+            const { data, error } = await supabase
+                .from('weekly_goals')
+                .insert({ user_id: userId, target_engagement: target })
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        }
+    },
 };

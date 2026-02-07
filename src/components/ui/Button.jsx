@@ -1,10 +1,11 @@
+import React from 'react';
 import './Button.css';
 
 export default function Button({
     children,
     variant = 'primary',
     size = 'md',
-    icon,
+    icon: Icon,
     iconPosition = 'left',
     fullWidth = false,
     disabled = false,
@@ -20,6 +21,14 @@ export default function Button({
         className
     ].filter(Boolean).join(' ');
 
+    const renderIcon = (icon) => {
+        if (!icon) return null;
+        if (typeof icon === 'function' || (typeof icon === 'object' && icon.$$typeof)) {
+            return React.createElement(icon, { size: size === 'sm' ? 16 : 20 });
+        }
+        return icon;
+    };
+
     return (
         <button
             type={type}
@@ -27,9 +36,13 @@ export default function Button({
             onClick={onClick}
             disabled={disabled}
         >
-            {icon && iconPosition === 'left' && <span className="btn-icon">{icon}</span>}
+            {Icon && iconPosition === 'left' && (
+                <span className="btn-icon">{renderIcon(Icon)}</span>
+            )}
             {children}
-            {icon && iconPosition === 'right' && <span className="btn-icon">{icon}</span>}
+            {Icon && iconPosition === 'right' && (
+                <span className="btn-icon">{renderIcon(Icon)}</span>
+            )}
         </button>
     );
 }

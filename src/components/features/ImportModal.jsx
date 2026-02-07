@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -26,11 +27,17 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
         e.preventDefault();
         setIsDragging(false);
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile && droppedFile.name.endsWith('.csv')) {
+        const isValidFile = droppedFile && (
+            droppedFile.name.endsWith('.csv') ||
+            droppedFile.name.endsWith('.xlsx') ||
+            droppedFile.name.endsWith('.xls')
+        );
+
+        if (isValidFile) {
             setFile(droppedFile);
             setStatus('idle');
         } else {
-            setErrorMessage('Por favor, selecione um arquivo CSV do LinkedIn.');
+            setErrorMessage('Por favor, selecione um arquivo CSV ou Excel do LinkedIn.');
             setStatus('error');
         }
     };
@@ -50,10 +57,11 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
 
         try {
             const reader = new FileReader();
+            const extension = file.name.split('.').pop().toLowerCase();
+            const isExcel = extension === 'xlsx' || extension === 'xls';
+
             reader.onload = async (e) => {
                 const content = e.target.result;
-                // The actual import call will happen here via importService
-                // But we'll pass the content back to the parent to handle the integration
                 await onImportSuccess(file, content);
                 setStatus('success');
                 setTimeout(() => {
@@ -62,26 +70,32 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
                     setStatus('idle');
                 }, 2000);
             };
+
             reader.onerror = () => {
                 throw new Error('Erro ao ler o arquivo.');
             };
-            reader.readAsText(file);
+
+            if (isExcel) {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
         } catch (error) {
             setErrorMessage(error.message);
             setStatus('error');
         }
     };
 
-    return (
-        <div className="modal-overlay">
-            <div className="modal-content import-modal">
+    return createPortal(
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content import-modal" onClick={e => e.stopPropagation()}>
                 <button className="modal-close" onClick={onClose}>
                     <X size={20} />
                 </button>
 
                 <div className="modal-header">
                     <h2>Importar Dados do LinkedIn</h2>
-                    <p>Suba o relatório CSV de "Publicações" para atualizar seu dashboard.</p>
+                    <p>Suba o relatório CSV ou Excel de "Publicações" para atualizar seu dashboard.</p>
                 </div>
 
                 <div className="modal-body">
@@ -104,7 +118,7 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
                                     type="file"
                                     ref={fileInputRef}
                                     onChange={handleFileSelect}
-                                    accept=".csv"
+                                    accept=".csv, .xlsx, .xls"
                                     style={{ display: 'none' }}
                                 />
 
@@ -121,8 +135,8 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
                                 ) : (
                                     <div className="dropzone-prompt">
                                         <Upload size={40} className="upload-icon" />
-                                        <p>Arraste o relatório CSV aqui ou clique para buscar</p>
-                                        <span className="hint">Apenas arquivos .csv gerados pelo LinkedIn</span>
+                                        <p>Arraste o relatório CSV ou Excel aqui ou clique para buscar</p>
+                                        <span className="hint">Arquivos .csv ou .xlsx gerados pelo LinkedIn</span>
                                     </div>
                                 )}
                             </div>
@@ -151,6 +165,7 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

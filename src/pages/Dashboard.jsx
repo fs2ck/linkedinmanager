@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { TrendingUp, Users, Eye, MessageCircle, Upload } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { TrendingUp, Users, Eye, Percent, Upload, ExternalLink, Target, Edit2, Check, X } from 'lucide-react';
+import { startOfMonth, subMonths, startOfWeek, endOfWeek, isWithinInterval, format, subDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import MetricsCard from '../components/features/MetricsCard';
 import { BarChartComponent, PieChartComponent } from '../components/charts/PerformanceChart';
@@ -8,88 +10,135 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import ImportModal from '../components/features/ImportModal';
 import { importService } from '../services/storage/importService';
-import { supabase } from '../services/storage/supabaseService';
+import { supabase, storageService } from '../services/storage/supabaseService';
 import { toast } from 'react-hot-toast';
 import './Dashboard.css';
 
 export default function Dashboard() {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [chartFilter, setChartFilter] = useState('monthly'); // 'daily', 'weekly', 'monthly', 'quarterly'
+    const [allData, setAllData] = useState([]);
+    const [manualGoal, setManualGoal] = useState(0);
+    const [isEditingGoal, setIsEditingGoal] = useState(false);
+    const [tempGoal, setTempGoal] = useState(0);
+
     const [metrics, setMetrics] = useState({
         totalEngagement: 0,
         engagementChange: 0,
+        totalImpressions: 0,
+        impressionsChange: 0,
         avgReach: 0,
         reachChange: 0,
         totalPosts: 0,
         postsChange: 0,
-        avgComments: 0,
-        commentsChange: 0,
+        avgEngagementRate: 0,
+        rateChange: 0,
     });
 
-    const [engagementData, setEngagementData] = useState([]);
     const [recentPosts, setRecentPosts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [postsFilter, setPostsFilter] = useState('30d'); // '30d', '90d', 'all'
+    const itemsPerPage = 5;
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         fetchDashboardData();
     }, []);
 
+    // Reset pagination when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [postsFilter]);
+
     const fetchDashboardData = async () => {
         setIsLoading(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            const userId = user?.id || '00000000-0000-0000-0000-000000000000';
 
+            // 1. Fetch Goals
+            const goalData = await storageService.getWeeklyGoal(userId);
+            if (goalData) {
+                setManualGoal(goalData.target_engagement);
+                setTempGoal(goalData.target_engagement);
+            }
+
+            // 2. Fetch Metrics
             const { data, error } = await supabase
                 .from('metrics_history')
                 .select('*')
-                .eq('user_id', user.id)
-                .order('published_at', { ascending: false });
+                .eq('user_id', userId)
+                .order('published_at', { ascending: true }); // Important: Ascending for correct chart order
 
             if (error) throw error;
+            setAllData(data || []);
 
             if (data && data.length > 0) {
-                // Process metrics
-                const totalEngagement = data.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0);
-                const totalImpressions = data.reduce((acc, curr) => acc + curr.impressions, 0);
-                const avgReach = Math.round(totalImpressions / data.length);
-                const avgComments = Math.round(data.reduce((acc, curr) => acc + curr.comments, 0) / data.length);
+                // Calculate Stats Card (Current Month vs Previous Month)
+                const now = new Date();
+                const currentMonthStart = startOfMonth(now);
+                const prevMonthStart = startOfMonth(subMonths(now, 1));
+                const prevMonthEnd = subDays(currentMonthStart, 1);
 
-                setMetrics({
-                    totalEngagement,
-                    engagementChange: 12, // Still mock change for now
-                    avgReach,
-                    reachChange: 8,
-                    totalPosts: data.length,
-                    postsChange: 2,
-                    avgComments,
-                    commentsChange: -3,
+                const currentMonthData = data.filter(m => new Date(m.published_at) >= currentMonthStart);
+                const prevMonthData = data.filter(m => {
+                    const d = new Date(m.published_at);
+                    return d >= prevMonthStart && d <= prevMonthEnd;
                 });
 
-                // Recent posts table
-                setRecentPosts(data.slice(0, 5).map(m => ({
+                const calculateChange = (current, previous) => {
+                    if (!previous || previous === 0) return current > 0 ? 100 : 0;
+                    return Math.round(((current - previous) / previous) * 100);
+                };
+
+                // Total Engagement
+                const currEng = currentMonthData.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0);
+                const prevEng = prevMonthData.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0);
+
+                // Total Impressions
+                const currImpr = currentMonthData.reduce((acc, curr) => acc + curr.impressions, 0);
+                const prevImpr = prevMonthData.reduce((acc, curr) => acc + curr.impressions, 0);
+
+                // Avg Reach
+                const currReach = currentMonthData.length > 0
+                    ? currentMonthData.reduce((acc, curr) => acc + curr.impressions, 0) / currentMonthData.length
+                    : 0;
+                const prevReach = prevMonthData.length > 0
+                    ? prevMonthData.reduce((acc, curr) => acc + curr.impressions, 0) / prevMonthData.length
+                    : 0;
+
+                // Avg Engagement Rate
+                const currRate = currentMonthData.length > 0
+                    ? currentMonthData.reduce((acc, curr) => acc + parseFloat(curr.engagement_rate || 0), 0) / currentMonthData.length
+                    : 0;
+                const prevRate = prevMonthData.length > 0
+                    ? prevMonthData.reduce((acc, curr) => acc + parseFloat(curr.engagement_rate || 0), 0) / prevMonthData.length
+                    : 0;
+
+                setMetrics({
+                    totalEngagement: currEng || data.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0),
+                    engagementChange: calculateChange(currEng, prevEng),
+                    totalImpressions: currImpr || data.reduce((acc, curr) => acc + curr.impressions, 0),
+                    impressionsChange: calculateChange(currImpr, prevImpr),
+                    avgReach: Math.round(currReach || (data.reduce((acc, curr) => acc + curr.impressions, 0) / data.length)),
+                    reachChange: calculateChange(currReach, prevReach),
+                    totalPosts: currentMonthData.length || data.length,
+                    postsChange: calculateChange(currentMonthData.length, prevMonthData.length),
+                    avgEngagementRate: parseFloat((currRate || (data.reduce((acc, curr) => acc + parseFloat(curr.engagement_rate || 0), 0) / data.length)).toFixed(2)),
+                    rateChange: calculateChange(currRate, prevRate),
+                });
+
+                // Recent posts table (Show Link as title)
+                // Map all data, reversed
+                setRecentPosts([...data].reverse().map(m => ({
                     id: m.id,
-                    title: m.title,
+                    title: m.post_id || 'Link indisponível',
                     date: m.published_at,
                     status: 'published',
                     engagement: m.reactions + m.comments + m.shares,
-                    reach: m.impressions
+                    reach: m.impressions,
+                    url: m.post_id
                 })));
-
-                // Engagement chart data (last 7 entries)
-                const chartData = data.slice(0, 7).reverse().map(m => ({
-                    name: new Date(m.published_at).toLocaleDateString('pt-BR', { weekday: 'short' }),
-                    value: m.reactions + m.comments + m.shares
-                }));
-                setEngagementData(chartData);
-            } else {
-                // Default fallback if no data
-                setEngagementData([
-                    { name: 'Seg', value: 0 },
-                    { name: 'Ter', value: 0 },
-                    { name: 'Qua', value: 0 },
-                    { name: 'Qui', value: 0 },
-                    { name: 'Sex', value: 0 },
-                ]);
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -99,11 +148,117 @@ export default function Dashboard() {
         }
     };
 
+    // Filtered Posts Logic
+    const filteredPosts = useMemo(() => {
+        if (postsFilter === 'all') return recentPosts;
+
+        const now = new Date();
+        const days = postsFilter === '30d' ? 30 : 90;
+        const cutOff = subDays(now, days);
+
+        return recentPosts.filter(p => new Date(p.date) >= cutOff);
+    }, [recentPosts, postsFilter]);
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
+    const paginatedPosts = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredPosts.slice(start, start + itemsPerPage);
+    }, [filteredPosts, currentPage]);
+
+    // Chart Data Aggregation Logic
+    const impressionsChartData = useMemo(() => {
+        if (!allData.length) return [];
+
+        const now = new Date();
+        let cutOff;
+
+        // Determine how far back we should look based on the filter
+        if (chartFilter === 'daily') {
+            cutOff = subDays(now, 14);
+        } else if (chartFilter === 'weekly') {
+            cutOff = subDays(now, 12 * 7);
+        } else if (chartFilter === 'monthly') {
+            cutOff = subMonths(now, 12);
+        }
+
+        const aggregated = {};
+        allData.forEach(m => {
+            const date = new Date(m.published_at);
+
+            // Skip data older than the cutoff
+            if (date < cutOff) return;
+
+            let key;
+            let sortKey;
+
+            if (chartFilter === 'daily') {
+                key = format(date, 'dd/MM');
+                sortKey = format(date, 'yyyyMMdd');
+            } else if (chartFilter === 'weekly') {
+                const start = startOfWeek(date, { weekStartsOn: 1 });
+                key = `Sem ${format(start, 'dd/MM')}`;
+                sortKey = format(start, 'yyyyMMdd');
+            } else if (chartFilter === 'monthly') {
+                key = format(date, "MMM/yy", { locale: ptBR });
+                sortKey = format(date, 'yyyyMM');
+            }
+
+            if (!aggregated[key]) aggregated[key] = { name: key, value: 0, sortKey };
+            aggregated[key].value += m.impressions;
+        });
+
+        return Object.values(aggregated)
+            .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    }, [allData, chartFilter]);
+
+    // Weekly Goal Logic (Using Impressions to match the chart)
+    const weeklyGoalData = useMemo(() => {
+        const now = new Date();
+        const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 });
+        const endOfThisWeek = endOfWeek(now, { weekStartsOn: 1 });
+
+        // Current week total (Impressions)
+        const currentWeekImpr = allData
+            .filter(m => isWithinInterval(new Date(m.published_at), { start: startOfThisWeek, end: endOfThisWeek }))
+            .reduce((acc, curr) => acc + curr.impressions, 0);
+
+        // Target (Manual or Fallback to 1000)
+        const target = manualGoal > 0 ? manualGoal : 1000;
+        const percent = Math.min(Math.round((currentWeekImpr / target) * 100), 100);
+
+        return {
+            progress: [
+                { name: 'Alcançado', value: percent },
+                { name: 'Restante', value: 100 - percent },
+            ],
+            current: currentWeekImpr,
+            target: target
+        };
+    }, [allData, manualGoal]);
+
+    const handleSaveGoal = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+
+            await storageService.updateWeeklyGoal(userId, parseInt(tempGoal));
+            setManualGoal(parseInt(tempGoal));
+            setIsEditingGoal(false);
+            toast.success('Meta de impressões atualizada!');
+        } catch (error) {
+            console.error('Error saving goal:', error);
+            toast.error('Erro ao salvar meta.');
+        }
+    };
+
     const handleImportSuccess = async (file, content) => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            const parsedData = importService.parseLinkedInCSV(content);
-            const result = await importService.saveImportedData(user.id, file.name, file.size, parsedData);
+            const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+
+            const parsedData = importService.parseLinkedInFile(file, content);
+            const result = await importService.saveImportedData(userId, file.name, file.size, parsedData);
 
             if (result.success) {
                 toast.success(`${result.count} registros importados com sucesso!`);
@@ -116,11 +271,6 @@ export default function Dashboard() {
             toast.error(`Erro na importação: ${error.message}`);
         }
     };
-
-    const goalProgress = [
-        { name: 'Alcançado', value: 56 },
-        { name: 'Restante', value: 44 },
-    ];
 
     return (
         <DashboardLayout
@@ -135,7 +285,6 @@ export default function Dashboard() {
                     >
                         Importar Dados
                     </Button>
-                    <Button variant="primary" size="sm">Compartilhar</Button>
                 </>
             }
         >
@@ -143,91 +292,193 @@ export default function Dashboard() {
                 {/* Metrics Cards */}
                 <div className="metrics-row">
                     <MetricsCard
+                        title="Impressões Totais"
+                        value={metrics.totalImpressions.toLocaleString()}
+                        change={metrics.impressionsChange}
+                        icon={Eye}
+                        variant="gradient"
+                    />
+                    <MetricsCard
                         title="Engajamento Total"
                         value={metrics.totalEngagement.toLocaleString()}
                         change={metrics.engagementChange}
                         icon={TrendingUp}
-                        variant="gradient"
                     />
                     <MetricsCard
                         title="Alcance Médio"
                         value={metrics.avgReach.toLocaleString()}
                         change={metrics.reachChange}
-                        icon={Eye}
+                        icon={Users}
                     />
                     <MetricsCard
                         title="Posts Públicados"
                         value={metrics.totalPosts}
                         change={metrics.postsChange}
-                        icon={Users}
+                        icon={Upload}
                     />
                     <MetricsCard
-                        title="Comentários Médios"
-                        value={metrics.avgComments}
-                        change={metrics.commentsChange}
-                        icon={MessageCircle}
+                        title="Taxa de Engajamento"
+                        value={`${metrics.avgEngagementRate}%`}
+                        change={metrics.rateChange}
+                        icon={Percent}
                     />
                 </div>
 
                 {/* Charts Row */}
                 <div className="charts-row">
                     <div className="chart-col-large">
-                        <BarChartComponent
-                            data={engagementData}
-                            dataKey="value"
-                            xKey="name"
-                            title="Engajamento Semanal"
-                            fullHeight
-                        />
+                        <Card className="chart-container-card">
+                            <div className="chart-header">
+                                <div className="chart-title-group">
+                                    <h3>Total de Impressões</h3>
+                                    <p>Visualizações brutas de suas publicações</p>
+                                </div>
+                                <div className="chart-filters">
+                                    <button
+                                        className={`filter-btn ${chartFilter === 'daily' ? 'active' : ''}`}
+                                        onClick={() => setChartFilter('daily')}
+                                    >Diário</button>
+                                    <button
+                                        className={`filter-btn ${chartFilter === 'weekly' ? 'active' : ''}`}
+                                        onClick={() => setChartFilter('weekly')}
+                                    >Semanal</button>
+                                    <button
+                                        className={`filter-btn ${chartFilter === 'monthly' ? 'active' : ''}`}
+                                        onClick={() => setChartFilter('monthly')}
+                                    >Mensal</button>
+                                </div>
+                            </div>
+                            <div className="chart-body">
+                                <BarChartComponent
+                                    data={impressionsChartData}
+                                    dataKey="value"
+                                    xKey="name"
+                                    hideHeader
+                                    fullHeight
+                                />
+                            </div>
+                        </Card>
                     </div>
                     <div className="chart-col-small">
                         <PieChartComponent
-                            data={goalProgress}
-                            title="Meta Semanal"
+                            data={weeklyGoalData.progress}
+                            title="Meta Semanal (Imp.)"
                         />
                         <div className="goal-info">
-                            <div className="goal-current">28.56K</div>
-                            <div className="goal-target">Meta: €50K</div>
+                            <div className="goal-header">
+                                <span>Status da Meta</span>
+                                {!isEditingGoal ? (
+                                    <button
+                                        className="edit-goal-btn"
+                                        onClick={() => setIsEditingGoal(true)}
+                                        title="Editar Meta"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                ) : (
+                                    <div className="edit-goal-actions">
+                                        <button className="save-goal-btn" onClick={handleSaveGoal}><Check size={14} /></button>
+                                        <button className="cancel-goal-btn" onClick={() => setIsEditingGoal(false)}><X size={14} /></button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {!isEditingGoal ? (
+                                <>
+                                    <div className="goal-current">{weeklyGoalData.current.toLocaleString()}</div>
+                                    <div className="goal-target">Alvo: {weeklyGoalData.target.toLocaleString()}</div>
+                                </>
+                            ) : (
+                                <div className="goal-edit-container">
+                                    <input
+                                        type="number"
+                                        className="goal-input"
+                                        value={tempGoal}
+                                        onChange={(e) => setTempGoal(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <span className="goal-input-hint">Defina o engajamento total alvo</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Recent Posts Table */}
                 <Card className="posts-table-card">
-                    <div className="card-header-row">
-                        <h3>{recentPosts.length > 0 ? 'Posts Recentes' : 'Nenhuma postagem encontrada'}</h3>
-                        <Button variant="ghost" size="sm">Ver todos</Button>
+                    <div className="card-header">
+                        <div className="header-info">
+                            <h3>Posts Recentes</h3>
+                            <Badge variant="secondary">{filteredPosts.length} posts</Badge>
+                        </div>
+                        <div className="table-filters">
+                            <button
+                                className={`filter-btn ${postsFilter === '30d' ? 'active' : ''}`}
+                                onClick={() => setPostsFilter('30d')}
+                            >30 Dias</button>
+                            <button
+                                className={`filter-btn ${postsFilter === '90d' ? 'active' : ''}`}
+                                onClick={() => setPostsFilter('90d')}
+                            >90 Dias</button>
+                            <button
+                                className={`filter-btn ${postsFilter === 'all' ? 'active' : ''}`}
+                                onClick={() => setPostsFilter('all')}
+                            >Tudo</button>
+                        </div>
                     </div>
                     {recentPosts.length > 0 && (
                         <div className="posts-table">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Título</th>
+                                        <th>Post ID / Link</th>
                                         <th>Data</th>
-                                        <th>Status</th>
                                         <th>Engajamento</th>
-                                        <th>Alcance</th>
+                                        <th>Impressões</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentPosts.map((post) => (
+                                    {paginatedPosts.map((post) => (
                                         <tr key={post.id}>
-                                            <td className="post-title">{post.title}</td>
-                                            <td>{new Date(post.date).toLocaleDateString('pt-BR')}</td>
-                                            <td>
-                                                <Badge
-                                                    variant={post.status === 'published' ? 'success' : 'warning'}
+                                            <td className="post-title">
+                                                <a
+                                                    href={post.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="post-link-cell"
                                                 >
-                                                    {post.status === 'published' ? 'Publicado' : 'Agendado'}
-                                                </Badge>
+                                                    {post.title.length > 40 ? post.title.substring(0, 40) + '...' : post.title}
+                                                    <ExternalLink size={12} className="link-icon" />
+                                                </a>
                                             </td>
-                                            <td className="metric-value">{post.engagement}</td>
+                                            <td>{new Date(post.date).toLocaleDateString('pt-BR')}</td>
+                                            <td className="metric-value">{post.engagement.toLocaleString()}</td>
                                             <td className="metric-value">{post.reach.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+
+                            {filteredPosts.length > 0 && (
+                                <div className="pagination-container">
+                                    <button
+                                        className="pagination-btn"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Anterior
+                                    </button>
+                                    <div className="pagination-pages">
+                                        Página <strong>{currentPage}</strong> de {totalPages || 1}
+                                    </div>
+                                    <button
+                                        className="pagination-btn"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages || totalPages === 0}
+                                    >
+                                        Próxima
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </Card>

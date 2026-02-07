@@ -10,7 +10,7 @@
     padding: 0 2.5rem;
     position: sticky;
     top: 0;
-    z-index: var(--z-fixed);
+    z-index: 1000;
 }
 
 .header-left {
@@ -67,6 +67,12 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+.header-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .header-icon-btn {
