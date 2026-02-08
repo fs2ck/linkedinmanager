@@ -37,10 +37,14 @@ export default function Dashboard() {
 
     const [demographics, setDemographics] = useState({});
 
-    // Helper for safe number formatting
     const formatNumber = (num) => {
         if (num === null || num === undefined || isNaN(num)) return '0';
         return Number(num).toLocaleString('pt-BR');
+    };
+
+    const calculateChange = (current, previous) => {
+        if (!previous || previous === 0) return current > 0 ? 100 : 0;
+        return Math.round(((current - previous) / previous) * 100);
     };
 
     const [recentPosts, setRecentPosts] = useState([]);
@@ -123,11 +127,8 @@ export default function Dashboard() {
                     return d >= prevMonthStart && d <= prevMonthEnd;
                 });
 
-                const calculateChange = (current, previous) => {
-                    if (!previous || previous === 0) return current > 0 ? 100 : 0;
-                    return Math.round(((current - previous) / previous) * 100);
-                };
 
+                // Total Engagement
                 // Total Engagement
                 const currEng = currentMonthData.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0);
                 const prevEng = prevMonthData.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0);
@@ -539,18 +540,105 @@ export default function Dashboard() {
                 {Object.keys(demographics).length > 0 && (
                     <div className="demographics-section">
                         <div className="section-header">
-                            <h2>Audiência</h2>
-                            <p>Distribuição demográfica baseada na última importação</p>
+                            <h2>Perfil da Audiência</h2>
+                            <p>Análise detalhada de quem está consumindo seu conteúdo</p>
                         </div>
-                        <div className="demo-grid">
-                            {Object.entries(demographics).map(([category, items]) => (
-                                <Card key={category} className="demo-card">
-                                    <PieChartComponent
-                                        data={items.slice(0, 5)}
-                                        title={category}
+                        <div className="demo-grid-bars">
+                            {/* Cargos */}
+                            {demographics['Cargos'] && (
+                                <Card className="demo-card-bar">
+                                    <BarChartComponent
+                                        data={demographics['Cargos'].slice(0, 8)}
+                                        title="Principais Cargos"
+                                        layout="horizontal"
+                                        xKey="name"
+                                        dataKey="value"
+                                        height={350}
+                                        color="#0ea5e9" // Sky 500
+                                        label="Cargos"
                                     />
                                 </Card>
-                            ))}
+                            )}
+
+                            {/* Setores */}
+                            {demographics['Setores'] && (
+                                <Card className="demo-card-bar">
+                                    <BarChartComponent
+                                        data={demographics['Setores'].slice(0, 8)}
+                                        title="Setores de Atuação"
+                                        layout="horizontal"
+                                        xKey="name"
+                                        dataKey="value"
+                                        height={350}
+                                        color="#8b5cf6" // Violet 500
+                                        label="Setor"
+                                    />
+                                </Card>
+                            )}
+
+                            {/* Localidades */}
+                            {demographics['Localidades'] && (
+                                <Card className="demo-card-bar">
+                                    <BarChartComponent
+                                        data={demographics['Localidades'].slice(0, 8)}
+                                        title="Localização Geográfica"
+                                        layout="horizontal"
+                                        xKey="name"
+                                        dataKey="value"
+                                        height={350}
+                                        color="#10b981" // Emerald 500
+                                        label="Local"
+                                    />
+                                </Card>
+                            )}
+
+                            {/* Nível de Experiência */}
+                            {demographics['Nível de experiência'] && (
+                                <Card className="demo-card-bar">
+                                    <BarChartComponent
+                                        data={demographics['Nível de experiência'].slice(0, 5)}
+                                        title="Nível de Senioridade"
+                                        layout="horizontal"
+                                        xKey="name"
+                                        dataKey="value"
+                                        height={300}
+                                        color="#f59e0b" // Amber 500
+                                        label="Nível"
+                                    />
+                                </Card>
+                            )}
+
+                            {/* Tamanho da Empresa */}
+                            {demographics['Tamanho da empresa'] && (
+                                <Card className="demo-card-bar">
+                                    <BarChartComponent
+                                        data={demographics['Tamanho da empresa'].slice(0, 5)}
+                                        title="Tamanho das Empresas"
+                                        layout="horizontal"
+                                        xKey="name"
+                                        dataKey="value"
+                                        height={300}
+                                        color="#6366f1" // Indigo 500
+                                        label="Tamanho"
+                                    />
+                                </Card>
+                            )}
+
+                            {/* Ranking de Empresas */}
+                            {demographics['Empresas'] && (
+                                <Card className="demo-card-bar full-width">
+                                    <BarChartComponent
+                                        data={demographics['Empresas'].slice(0, 10)}
+                                        title="Top Empresas Visitantes"
+                                        layout="horizontal"
+                                        xKey="name"
+                                        dataKey="value"
+                                        height={400}
+                                        color="#ec4899" // Pink 500
+                                        label="Empresa"
+                                    />
+                                </Card>
+                            )}
                         </div>
                     </div>
                 )}

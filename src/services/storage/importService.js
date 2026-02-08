@@ -71,14 +71,16 @@ export const importService = {
                 let demoHeaderIndex = -1;
                 for (let i = 0; i < Math.min(jsonData.length, 20); i++) {
                     const rowStr = JSON.stringify(jsonData[i] || []).toLowerCase();
-                    if (rowStr.includes('principais dados demográficos') && rowStr.includes('porcentagem')) {
+                    if (rowStr.includes('principais dados demográficos') || (rowStr.includes('principais') && rowStr.includes('porcentagem'))) {
                         demoHeaderIndex = i;
+                        console.log('Found demographics header at index:', i, jsonData[i]);
                         break;
                     }
                 }
 
                 if (demoHeaderIndex !== -1) {
                     const dataRows = jsonData.slice(demoHeaderIndex + 1);
+                    console.log('Processing demographic rows:', dataRows.length);
                     const demographics = dataRows.map(row => {
                         if (!row || row.length < 3) return null;
                         const category = row[0];
@@ -89,7 +91,12 @@ export const importService = {
                         // Parse percentage (e.g., "10%", "menos de 1%" or just 0.1)
                         let val = 0;
                         if (typeof percentage === 'string') {
-                            val = parseFloat(percentage.replace(/%/g, '').replace(',', '.'));
+                            const cleanStr = percentage.toLowerCase().replace(/%/g, '').replace(',', '.').trim();
+                            if (cleanStr.includes('menos de')) {
+                                val = 0.5; // Represent < 1% as 0.5% for visibility
+                            } else {
+                                val = parseFloat(cleanStr);
+                            }
                         } else {
                             val = percentage * 100; // XLSX might read 10% as 0.1
                         }
@@ -97,6 +104,8 @@ export const importService = {
 
                         return { category, label, value_percent: val };
                     }).filter(Boolean);
+
+                    console.log('Parsed demographics count:', demographics.length);
 
                     if (demographics.length > 0) {
                         results.demographics = [...results.demographics, ...demographics];
@@ -108,12 +117,27 @@ export const importService = {
                 for (let i = 0; i < Math.min(jsonData.length, 50); i++) {
                     const rowStr = JSON.stringify(jsonData[i] || []).toLowerCase();
                     if (rowStr.includes('total de seguidores') || rowStr.includes('total followers')) {
+                        console.log('Found follower row candidate:', rowStr);
                         // Usually the count is in the next cell or same cell
                         const row = jsonData[i];
-                        const countStr = row.find(cell => !isNaN(parseInt(cell?.toString().replace(/\D/g, ''))));
-                        if (countStr) {
-                            results.followers = parseInt(countStr.toString().replace(/\D/g, ''));
+                        // Find a cell that looks like a number but NOT a date
+                        const countCell = row.find(cell => {
+                            if (!cell) return false;
+                            const str = cell.toString();
+                            // Reject if it looks like a date (contains / or - and length > 5)
+                            if (str.match(/\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/)) return false;
+
+                            // Check if it's a number after stripping chars
+                            const num = parseInt(str.replace(/\D/g, ''));
+                            return !isNaN(num) && num > 0;
+                        });
+
+                        if (countCell) {
+                            results.followers = parseInt(countCell.toString().replace(/\D/g, ''));
+                            console.log('Extracted followers count:', results.followers);
                             foundAny = true;
+                        } else {
+                            console.warn('Found follower row but could not extract number:', row);
                         }
                     }
                 }
@@ -263,20 +287,42 @@ export const importService = {
         }
 
         try {
-            // 1. Log the import
-            const { data: logData, error: logError } = await supabase
-                .from('imported_files_log')
-                .insert({
-                    user_id: userId,
-                    file_name: fileName,
-                    file_size: fileSize,
-                    rows_count: (metrics?.length || 0) + (demographics?.length || 0)
-                })
-                .select()
-                .single();
+            // 1. Check for existing file log (Idempotency)
+            let logData;
 
-            if (logError) throw logError;
-            console.log('Log created successfully:', logData.id);
+            // Check if file was already imported
+            const { data: existingLog } = await supabase
+                .from('imported_files_log')
+                .select('*')
+                .eq('file_name', fileName)
+                .eq('file_size', fileSize)
+                .order('imported_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (existingLog) {
+                console.log('File already imported updates will be applied to existing log:', existingLog.id);
+                logData = existingLog;
+
+                // Cleanup existing data for this file to prevent duplication
+                await supabase.from('demographics_history').delete().eq('source_file_id', logData.id);
+                await supabase.from('followers_history').delete().eq('source_file_id', logData.id);
+                // Metrics are upserted, so no need to delete, but we could if we wanted to be safe
+            } else {
+                const { data: newLog, error: logError } = await supabase
+                    .from('imported_files_log')
+                    .insert({
+                        user_id: userId,
+                        file_name: fileName,
+                        file_size: fileSize,
+                        rows_count: (metrics?.length || 0) + (demographics?.length || 0)
+                    })
+                    .select()
+                    .single();
+                if (logError) throw logError;
+                logData = newLog;
+                console.log('Log created successfully:', logData.id);
+            }
 
             // 2. Insert metrics (Post performance)
             if (metrics?.length > 0) {
