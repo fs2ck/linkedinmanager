@@ -4,7 +4,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import PlannerCalendar from '../components/planner/PlannerCalendar';
 import CreateCycleWizard from '../components/planner/CreateCycleWizard';
 import { Sparkles, Loader, Trash2, AlertTriangle } from 'lucide-react';
-import Modal from '../components/ui/Modal';
+import DeletePlanModal from '../components/planner/DeletePlanModal';
 import Button from '../components/ui/Button';
 import './Planner.css';
 
@@ -53,7 +53,7 @@ const Planner = () => {
                                     <Button
                                         variant="secondary"
                                         size="sm"
-                                        className="text-red-500 border-red-100 hover:bg-red-50 hover:text-red-600 font-medium"
+                                        className="btn-delete-secondary font-medium"
                                         onClick={() => setIsDeleteModalOpen(true)}
                                         icon={Trash2}
                                     >
@@ -86,40 +86,14 @@ const Planner = () => {
                 )}
             </div>
 
-            <Modal
+            <DeletePlanModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
-                title="Confirmar Exclusão"
-                size="popup"
-                footer={
-                    <>
-                        <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
-                        <Button
-                            variant="danger"
-                            onClick={async () => {
-                                await deleteCurrentPlan();
-                                setIsDeleteModalOpen(false);
-                            }}
-                        >
-                            Excluir Plano
-                        </Button>
-                    </>
-                }
-            >
-                <div className="flex flex-col items-center text-center space-y-4">
-                    <div className="bg-red-100 p-3 rounded-full text-red-600">
-                        <AlertTriangle size={32} />
-                    </div>
-                    <div>
-                        <p className="text-slate-600">
-                            Tem certeza que deseja excluir este plano de conteúdo?
-                        </p>
-                        <p className="text-sm text-red-500 font-medium mt-2">
-                            Esta ação é irreversível e todos os posts gerados serão perdidos.
-                        </p>
-                    </div>
-                </div>
-            </Modal>
+                onConfirm={async () => {
+                    await deleteCurrentPlan();
+                    setIsDeleteModalOpen(false);
+                }}
+            />
         </DashboardLayout>
     );
 };

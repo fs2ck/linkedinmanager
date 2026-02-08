@@ -1,0 +1,137 @@
+/* Delete Plan Modal Styles */
+.delete-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.delete-modal-container {
+    background: white;
+    width: 100%;
+    max-width: 440px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    position: relative;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: scaleIn 0.2s ease-out;
+}
+
+.delete-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.delete-modal-close:hover {
+    color: #475569;
+    background-color: #f1f5f9;
+}
+
+.delete-modal-icon-container {
+    width: 64px;
+    height: 64px;
+    background-color: #fef2f2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.delete-modal-icon {
+    color: #ef4444;
+}
+
+.delete-modal-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0 0 12px 0;
+}
+
+.delete-modal-description {
+    font-size: 15px;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0 0 32px 0;
+}
+
+.delete-modal-actions {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.delete-modal-btn {
+    flex: 1;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+}
+
+.btn-cancel:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.btn-delete-confirm {
+    background: #ef4444;
+    border: none;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
+.btn-delete-confirm:hover {
+    background: #dc2626;
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+    transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

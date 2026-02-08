@@ -1,37 +1,53 @@
-import { AlertTriangle } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
+import './DeletePlanModal.css';
 
 const DeletePlanModal = ({ isOpen, onClose, onConfirm }) => {
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') onClose();
+        };
+
+        if (isOpen) {
+            document.addEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'hidden';
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
+    const handleBackdropClick = (e) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
-                <div className="flex items-start gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="w-6 h-6 text-red-600" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                            Excluir Plano Estratégico
-                        </h3>
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                            Tem certeza que deseja excluir este plano? Esta ação não pode ser desfeita e todos os posts, pilares e configurações serão permanentemente removidos.
-                        </p>
-                    </div>
+        <div className="delete-modal-overlay" onClick={handleBackdropClick}>
+            <div className="delete-modal-container">
+                <button className="delete-modal-close" onClick={onClose}>
+                    <X size={20} />
+                </button>
+
+                <div className="delete-modal-icon-container">
+                    <AlertTriangle className="delete-modal-icon" size={32} />
                 </div>
 
-                <div className="flex gap-3 justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors"
-                    >
+                <h2 className="delete-modal-title">Excluir Plano</h2>
+
+                <p className="delete-modal-description">
+                    Tem certeza que deseja excluir este plano? Esta ação não pode ser desfeita e removerá todos os dados associados.
+                </p>
+
+                <div className="delete-modal-actions">
+                    <button className="delete-modal-btn btn-cancel" onClick={onClose}>
                         Cancelar
                     </button>
-                    <button
-                        onClick={onConfirm}
-                        className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-sm font-medium text-white transition-colors"
-                    >
-                        Excluir Plano
+                    <button className="delete-modal-btn btn-delete-confirm" onClick={onConfirm}>
+                        Excluir
                     </button>
                 </div>
             </div>
