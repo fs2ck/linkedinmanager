@@ -1,0 +1,112 @@
+.stepper-container {
+    padding: var(--spacing-xl) 0 var(--spacing-2xl);
+    width: 100%;
+}
+
+.stepper-wrapper {
+    display: flex;
+    justify-content: justify;
+    align-items: center;
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+}
+
+.stepper-line-bg {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--color-slate-200);
+    z-index: 0;
+    border-radius: var(--radius-full);
+}
+
+.stepper-line-active {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    height: 2px;
+    background-color: var(--color-primary-600);
+    z-index: 1;
+    transition: width 0.5s ease-in-out;
+    border-radius: var(--radius-full);
+}
+
+.stepper-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    cursor: default;
+    transition: var(--transition-base);
+}
+
+.stepper-item.completed {
+    cursor: pointer;
+}
+
+.stepper-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-white);
+    border: 2px solid var(--color-slate-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-slate-400);
+    transition: all 0.3s ease;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stepper-item.active .stepper-circle {
+    background-color: var(--color-primary-600);
+    border-color: var(--color-primary-600);
+    color: var(--color-white);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.stepper-item.completed .stepper-circle {
+    background-color: var(--color-primary-600);
+    border-color: var(--color-primary-600);
+    color: var(--color-white);
+}
+
+.stepper-label-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.stepper-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-slate-500);
+    transition: color 0.3s ease;
+}
+
+.stepper-item.active .stepper-label {
+    color: var(--color-primary-700);
+}
+
+.stepper-item.completed .stepper-label {
+    color: var(--color-slate-800);
+}
+
+.stepper-status {
+    font-size: var(--font-size-xs);
+    color: var(--color-slate-400);
+    margin-top: 2px;
+}
+
+.stepper-item.active .stepper-status {
+    color: var(--color-primary-500);
+}

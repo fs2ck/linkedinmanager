@@ -1,164 +1,85 @@
-import axios from 'axios';
+import Groq from 'groq-sdk';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
-const groqClient = axios.create({
-    baseURL: GROQ_API_URL,
-    headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-    },
-});
+let groq;
 
-// AI Service for content generation and refinement
-export const aiService = {
-    async generateDraft({ topic, tone = 'professional', length = 'medium', context = '' }) {
-        const prompt = `Você é um especialista em criação de conteúdo para LinkedIn.
+if (GROQ_API_KEY) {
+    groq = new Groq({
+        apiKey: GROQ_API_KEY,
+        dangerouslyAllowBrowser: true // Use backend proxy for production
+    });
+} else {
+    console.warn('VITE_GROQ_API_KEY is missing. AI features disabled.');
+}
 
-Tarefa: Criar um post sobre "${topic}"
+const SYSTEM_PROMPT = `
+You are an expert Content Strategist for LinkedIn, specializing in B2B and C-level personal branding. 
+Your goal is to create a sophisticated content calendar that positions the user as a thought leader.
 
-Tom: ${tone}
-Tamanho: ${length === 'short' ? '100-150 palavras' : length === 'medium' ? '150-250 palavras' : '250-400 palavras'}
-${context ? `Contexto adicional: ${context}` : ''}
+### STRATEGY & TONE
+- **Executive Presence**: Use precise, high-level business language. Avoid fluff.
+- **Decision-Centric**: Focus on strategic decisions, governance, and scale.
+- **Formats**: Mix of Frameworks, Provocations, Storytelling, Opinions, and Case Studies.
 
-Diretrizes:
-- Comece com um gancho forte que capture atenção
-- Use parágrafos curtos para facilitar leitura
-- Inclua insights valiosos ou aprendizados
-- Termine com uma call-to-action ou pergunta para engajamento
-- Use emojis estrategicamente (mas não exagere)
-- Não use hashtags (serão adicionadas separadamente)
+### REFERENCE QUALITY (GOLD STANDARD)
+- PILAR: IA COMO SISTEMA DE DECISÃO -> "Os 4 níveis de maturidade em IA aplicada" (Framework)
+- PILAR: CX/UX COMO SISTEMAS ESTRATÉGICOS -> "Por que 90% das iniciativas de CX falham" (Provocação)
 
-Crie o post:`;
+### OUTPUT FORMAT
+Return a JSON object with a "posts" field, which is an array of objects. Each object must have:
+- "date": "YYYY-MM-DD" (Calculate based on start date and frequency)
+- "pillar_id": (UUID of the pillar)
+- "theme": String
+- "title": String (Hook/Headline)
+- "format": String (Framework, Provocação, Storytelling, Opinião, Reflexão, Caso de uso)
+- "objective": String (Autoridade técnica, Debate executivo, Visibilidade C-level)
+- "perspective": String (The unique angle)
+`;
+
+export const groqService = {
+    async generateContentPlan(cycleData, pillars) {
+        if (!groq) throw new Error("Groq API Key unavailable");
+
+        const pillarsContext = pillars.map(p =>
+            `- ID: ${p.id}\n  NAME: ${p.name}\n  KEY MESSAGE: ${p.key_message}\n  FOCUS: ${p.focus_area}\n  PROPORTION: ${p.proportion}%`
+        ).join('\n\n');
+
+        const userPrompt = `
+        I need a content plan for a "${cycleData.duration_days}-day" cycle starting on "${cycleData.start_date}".
+        
+        **THESIS**: "${cycleData.thesis}"
+        **DAYS**: ${cycleData.schedule_days.join(', ')}
+        
+        **PILLARS**:
+        ${pillarsContext}
+
+        **INSTRUCTIONS**:
+        1. Create posts strictly adhering to pillar proportions.
+        2. Distribute dates correctly (e.g., only on Mon, Wed, Fri if specified).
+        3. Ensure variety in formats.
+        4. Return ONLY valid JSON.
+        `;
 
         try {
-            const response = await groqClient.post('', {
-                model: 'llama-3.3-70b-versatile',
+            const completion = await groq.chat.completions.create({
                 messages: [
-                    { role: 'system', content: 'Você é um especialista em criação de conteúdo para LinkedIn, focado em gerar posts que engajam e agregam valor.' },
-                    { role: 'user', content: prompt }
+                    { role: "system", content: SYSTEM_PROMPT },
+                    { role: "user", content: userPrompt }
                 ],
+                model: "llama-3.3-70b-versatile",
                 temperature: 0.7,
-                max_tokens: 1000,
+                response_format: { type: "json_object" }
             });
 
-            return response.data.choices[0].message.content;
+            const content = completion.choices[0]?.message?.content;
+            if (!content) throw new Error("No content generated");
+
+            const parsed = JSON.parse(content);
+            return parsed.posts || parsed;
         } catch (error) {
-            console.error('Error generating draft:', error);
-            throw new Error('Falha ao gerar rascunho. Verifique sua API key.');
+            console.error("Groq Generation Error:", error);
+            throw error;
         }
-    },
-
-    async refineDraft({ content, instructions }) {
-        const prompt = `Você é um editor especializado em conteúdo para LinkedIn.
-
-Post atual:
-"""
-${content}
-"""
-
-Instruções de refinamento:
-${instructions}
-
-Por favor, refine o post seguindo as instruções acima. Mantenha o tom profissional e o formato adequado para LinkedIn.
-
-Post refinado:`;
-
-        try {
-            const response = await groqClient.post('', {
-                model: 'llama-3.1-70b-versatile',
-                messages: [
-                    { role: 'system', content: 'Você é um editor especializado em refinar conteúdo para LinkedIn.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.6,
-                max_tokens: 1000,
-            });
-
-            return response.data.choices[0].message.content;
-        } catch (error) {
-            console.error('Error refining draft:', error);
-            throw new Error('Falha ao refinar rascunho.');
-        }
-    },
-
-    async suggestImprovements(content) {
-        const prompt = `Analise o seguinte post do LinkedIn e sugira melhorias específicas:
-
-"""
-${content}
-"""
-
-Forneça 3-5 sugestões concretas de melhoria, focando em:
-- Clareza e impacto
-- Estrutura e formatação
-- Engajamento
-- Call-to-action
-
-Formato: Liste as sugestões de forma concisa e acionável.`;
-
-        try {
-            const response = await groqClient.post('', {
-                model: 'llama-3.1-70b-versatile',
-                messages: [
-                    { role: 'system', content: 'Você é um consultor de conteúdo para LinkedIn.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 500,
-            });
-
-            return response.data.choices[0].message.content;
-        } catch (error) {
-            console.error('Error suggesting improvements:', error);
-            throw new Error('Falha ao gerar sugestões.');
-        }
-    },
-
-    async generateHashtags(content) {
-        const prompt = `Com base no seguinte post do LinkedIn, sugira 5-8 hashtags relevantes:
-
-"""
-${content}
-"""
-
-Retorne apenas as hashtags, separadas por espaço, no formato #hashtag.`;
-
-        try {
-            const response = await groqClient.post('', {
-                model: 'llama-3.1-70b-versatile',
-                messages: [
-                    { role: 'system', content: 'Você é um especialista em estratégia de hashtags para LinkedIn.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.5,
-                max_tokens: 200,
-            });
-
-            return response.data.choices[0].message.content;
-        } catch (error) {
-            console.error('Error generating hashtags:', error);
-            throw new Error('Falha ao gerar hashtags.');
-        }
-    },
-
-    async chatWithAgent({ messages, systemPrompt }) {
-        try {
-            const response = await groqClient.post('', {
-                model: 'llama-3.1-8b-instant',
-                messages: [
-                    { role: 'system', content: systemPrompt || 'Você é um assistente especializado em criação de conteúdo para LinkedIn.' },
-                    ...messages
-                ],
-                temperature: 0.7,
-                max_tokens: 800,
-            });
-
-            return response.data.choices[0].message.content;
-        } catch (error) {
-            console.error('Error in chat:', error);
-            throw new Error('Falha na comunicação com o agente.');
-        }
-    },
+    }
 };

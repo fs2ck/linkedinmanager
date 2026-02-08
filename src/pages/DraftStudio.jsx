@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input, { Textarea } from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
-import { aiService } from '../services/ai/groqService';
+import { groqService as aiService } from '../services/ai/groqService';
 import { usePostStore } from '../stores/useStore';
 import toast from 'react-hot-toast';
 import './DraftStudio.css';

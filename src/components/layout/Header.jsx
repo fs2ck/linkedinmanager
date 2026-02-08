@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Download, Share2, Bell, HelpCircle } from 'lucide-react';
+import { Search, Download, Share2, Bell, HelpCircle, Moon } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import GuideModal from '../features/GuideModal';
@@ -28,6 +28,12 @@ export default function Header({ title, actions }) {
                         title="Guia de Importação"
                     >
                         <HelpCircle size={20} />
+                    </button>
+                    <button
+                        className="header-icon-btn"
+                        title="Alternar Tema"
+                    >
+                        <Moon size={20} />
                     </button>
                 </div>
 

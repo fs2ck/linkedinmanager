@@ -1,0 +1,56 @@
+🚀 Starting Groq MOCK Generation Test...
+
+[MOCK] Sending prompt to AI...
+---------------------------------------------------
+I need a content plan for a "90-day" cycle starting on "2026-03-01".
+    
+    **THESIS**: "Posicionar-me como autoridade em IA executive."
+    **DAYS**: Mon, Wed, Fri
+    
+    **PILLARS**:
+    - ID: p1
+  NAME: IA COMO SISTEMA DE DECISÃO
+  KEY MESSAGE: IA é decisão
+  FOCUS: Negócios
+  PROPORTION: 40%
+
+- ID: p2
+  NAME: CX/UX ESTRATÉGICO
+  KEY MESSAGE: CX é valor
+  FOCUS: Estratégia
+  PROPORTION: 30%
+
+- ID: p3
+  NAME: TRANSFORMAÇÃO
+  KEY MESSAGE: Complexidade real
+  FOCUS: Operação
+  PROPORTION: 30%
+
+    **INSTRUCTIONS**:
+    1. Create posts strictly adhering to pillar proportions.
+    2. Distribute dates correctly.
+    3. Ensure variety in formats.
+    4. Return ONLY valid JSON.
+---------------------------------------------------
+
+✅ [MOCK] Response Received!
+
+📊 Generated 3 posts.
+sample Post 1: {
+  date: '2026-03-02',
+  pillar_id: 'p1',
+  theme: 'Os 4 níveis de maturidade em IA aplicada',
+  title: 'Onde sua empresa está na escala de maturidade de IA?',
+  format: 'Framework',
+  objective: 'Autoridade técnica',
+  perspective: 'IA evolui de automação tática para decisão autônoma.'
+}
+sample Post 2: {
+  date: '2026-03-04',
+  pillar_id: 'p2',
+  theme: 'Por que 90% das iniciativas de CX falham',
+  title: 'CX além do NPS: O erro de focar na métrica errada',
+  format: 'Provocação',
+  objective: 'Debate executivo',
+  perspective: 'CX estratégico conecta experiência a P&L.'
+}

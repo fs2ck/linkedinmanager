@@ -1,69 +1,104 @@
 import { create } from 'zustand';
-import { storageService } from '../services/storage/supabaseService';
-import { generate90DaySlots } from '../utils/plannerUtils';
-import { addDays, format } from 'date-fns';
+import { storageService as supabaseService } from '../services/storage/supabaseService';
+import { groqService } from '../services/ai/groqService';
+import { toast } from 'react-hot-toast';
 
 export const usePlannerStore = create((set, get) => ({
     currentPlan: null,
-    plannedPosts: [],
+    pillars: [],
+    posts: [],
     isLoading: false,
+    isGenerating: false,
     error: null,
 
     fetchCurrentPlan: async () => {
         set({ isLoading: true });
         try {
-            const cycle = await storageService.getActiveCycle();
+            const cycle = await supabaseService.getActiveCycle();
             if (cycle) {
-                const posts = await storageService.getPlannedPosts(cycle.id);
-                set({ currentPlan: cycle, plannedPosts: posts, isLoading: false });
+                const pillars = await supabaseService.getPillars(cycle.id);
+                const posts = await supabaseService.getPlannedPosts(cycle.id);
+                set({ currentPlan: cycle, pillars, posts });
             } else {
-                set({ currentPlan: null, plannedPosts: [], isLoading: false });
+                set({ currentPlan: null, pillars: [], posts: [] });
             }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
+            console.error('Error fetching cycle:', error);
+            set({ error: error.message });
+        } finally {
+            set({ isLoading: false });
         }
     },
 
-    createCycle: async ({ startDate, thesis }) => {
-        set({ isLoading: true });
+    createCycle: async (cycleData, pillarsData) => {
+        set({ isGenerating: true });
         try {
-            const endDate = format(addDays(new Date(startDate), 90), 'yyyy-MM-dd');
-
-            // 1. Criar Ciclo
-            const cycle = await storageService.createCycle({
-                start_date: startDate,
-                end_date: endDate,
-                thesis,
+            // 1. Create Cycle in DB
+            const cycle = await supabaseService.createCycle({
+                ...cycleData,
                 status: 'active'
             });
 
-            // 2. Gerar Slots de Posts
-            const slots = generate90DaySlots(startDate).map(slot => ({
-                ...slot,
+            // 2. Create Pillars in DB
+            const pillarsWithId = pillarsData.map(p => ({
+                ...p,
                 cycle_id: cycle.id
             }));
+            const createdPillars = await supabaseService.createPillars(pillarsWithId);
 
-            // 3. Salvar no Banco
-            const posts = await storageService.createPlannedPosts(slots);
+            // 3. Generate Plan with Groq
+            // We pass the created cycle and pillars to Groq to generate posts
+            const generatedPosts = await groqService.generateContentPlan(cycle, createdPillars);
 
-            set({ currentPlan: cycle, plannedPosts: posts, isLoading: false });
-            return cycle;
+            // 4. Save Generated Posts to DB
+            const postsToSave = generatedPosts.map(post => ({
+                ...post,
+                cycle_id: cycle.id,
+                status: 'planned'
+            }));
+
+            await supabaseService.createPlannedPosts(postsToSave);
+
+            // 5. Update Store
+            set({ currentPlan: cycle, pillars: createdPillars, posts: postsToSave });
+            toast.success('Estratégia criada com sucesso!');
         } catch (error) {
-            set({ error: error.message, isLoading: false });
-            throw error;
+            console.error('Error creating cycle:', error);
+            toast.error('Erro ao criar estratégia: ' + error.message);
+            set({ error: error.message });
+        } finally {
+            set({ isGenerating: false });
         }
     },
 
-    updatePost: async (postId, updates) => {
+    updatePlannedPost: async (postId, updates) => {
         try {
-            const updatedPost = await storageService.updatePlannedPost(postId, updates);
+            const updated = await supabaseService.updatePlannedPost(postId, updates);
             set(state => ({
-                plannedPosts: state.plannedPosts.map(p => p.id === postId ? updatedPost : p)
+                posts: state.posts.map(p => p.id === postId ? updated : p)
             }));
-            return updatedPost;
+            toast.success('Post atualizado!');
         } catch (error) {
-            set({ error: error.message });
-            throw error;
+            console.error('Error updating post:', error);
+            toast.error('Erro ao atualizar post.');
+        }
+    },
+
+    deleteCurrentPlan: async () => {
+        const { currentPlan } = get();
+        if (!currentPlan) return;
+
+
+        set({ isLoading: true });
+        try {
+            await supabaseService.deleteCycle(currentPlan.id);
+            set({ currentPlan: null, pillars: [], posts: [] });
+            toast.success('Plano excluído com sucesso.');
+        } catch (error) {
+            console.error('Error deleting plan:', error);
+            toast.error('Erro ao excluir plano.');
+        } finally {
+            set({ isLoading: false });
         }
     }
 }));

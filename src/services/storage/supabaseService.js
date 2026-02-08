@@ -133,6 +133,7 @@ export const storageService = {
     },
 
     // Content Planner
+    // Content Planner
     async getActiveCycle() {
         const { data, error } = await supabase
             .from('planning_cycles')
@@ -157,10 +158,53 @@ export const storageService = {
         return data;
     },
 
+    async deleteCycle(cycleId) {
+        const { error } = await supabase
+            .from('planning_cycles')
+            .delete()
+            .eq('id', cycleId);
+
+        if (error) throw error;
+    },
+
+    async getPillars(cycleId) {
+        const { data, error } = await supabase
+            .from('planning_pillars')
+            .select('*')
+            .eq('cycle_id', cycleId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        return data;
+    },
+
+    async createPillars(pillars) {
+        const { data, error } = await supabase
+            .from('planning_pillars')
+            .insert(pillars)
+            .select();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updatePillars(pillars) {
+        // Upsert logic or delete/insert. For simplicity, we might assume full replacement or individual updates.
+        // Here we'll just upsert
+        const { data, error } = await supabase
+            .from('planning_pillars')
+            .upsert(pillars)
+            .select();
+
+        if (error) throw error;
+        return data;
+    },
+
     async getPlannedPosts(cycleId) {
+        // Join with pillars to get pillar names/colors if needed
         const { data, error } = await supabase
             .from('planned_posts')
-            .select('*')
+            .select('*, planning_pillars(name, color)')
             .eq('cycle_id', cycleId)
             .order('date', { ascending: true });
 

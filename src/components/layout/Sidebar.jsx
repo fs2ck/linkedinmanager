@@ -7,6 +7,7 @@ import {
     Send,
     Settings
 } from 'lucide-react';
+import Avatar from '../ui/Avatar';
 import './Sidebar.css';
 
 const menuItems = [
@@ -47,6 +48,16 @@ export default function Sidebar() {
                     );
                 })}
             </nav>
+
+            <div className="sidebar-footer">
+                <div className="user-profile">
+                    <Avatar size="md" alt="Felipe Barbosa" />
+                    <div className="user-info">
+                        <span className="user-name">Felipe Barbosa</span>
+                        <span className="user-email">felipe@exemplo.com</span>
+                    </div>
+                </div>
+            </div>
         </aside>
     );
 }

@@ -4,7 +4,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { Textarea } from '../components/ui/Input';
-import { aiService } from '../services/ai/groqService';
+import { groqService as aiService } from '../services/ai/groqService';
 import { linkedinService } from '../services/linkedin/linkedinService';
 import toast from 'react-hot-toast';
 import './PostEditor.css';
