@@ -23,10 +23,14 @@ export default function Button({
 
     const renderIcon = (icon) => {
         if (!icon) return null;
-        if (typeof icon === 'function' || (typeof icon === 'object' && icon.$$typeof)) {
-            return React.createElement(icon, { size: size === 'sm' ? 16 : 20 });
+
+        // If it's already a React element (JSX literal like <Icon />), just return it
+        if (React.isValidElement(icon)) {
+            return icon;
         }
-        return icon;
+
+        // It's a component (function, class, or forwardRef object like Lucide icons)
+        return React.createElement(icon, { size: size === 'sm' ? 16 : 20 });
     };
 
     return (

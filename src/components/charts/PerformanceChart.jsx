@@ -1,7 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './PerformanceChart.css';
 
-export function BarChartComponent({ data, dataKey, xKey, title, fullHeight = false, hideHeader = false }) {
+export function BarChartComponent({ data, dataKey, xKey, title, label, fullHeight = false, hideHeader = false }) {
     return (
         <div className={`chart-container ${fullHeight ? 'chart-full-height' : ''}`}>
             {!hideHeader && title && <h3 className="chart-title">{title}</h3>}
@@ -12,6 +12,11 @@ export function BarChartComponent({ data, dataKey, xKey, title, fullHeight = fal
                         <XAxis dataKey={xKey} stroke="var(--text-tertiary)" />
                         <YAxis stroke="var(--text-tertiary)" />
                         <Tooltip
+                            label={label}
+                            formatter={(value) => [
+                                (value !== null && value !== undefined) ? value.toLocaleString() : '0',
+                                label || 'Valor'
+                            ]}
                             contentStyle={{
                                 background: 'var(--bg-primary)',
                                 border: '1px solid var(--border-light)',
@@ -59,7 +64,9 @@ export function PieChartComponent({ data, title }) {
                             style={{ background: COLORS[index % COLORS.length] }}
                         />
                         <span className="legend-label">{entry.name}</span>
-                        <span className="legend-value">{entry.value}%</span>
+                        <span className="legend-value">
+                            {(entry.value !== null && entry.value !== undefined) ? entry.value : 0}%
+                        </span>
                     </div>
                 ))}
             </div>

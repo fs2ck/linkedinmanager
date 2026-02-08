@@ -31,24 +31,32 @@ export default function Dashboard() {
         reachChange: 0,
         totalPosts: 0,
         postsChange: 0,
-        avgEngagementRate: 0,
-        rateChange: 0,
+        totalFollowers: 0,
+        followersChange: 0,
     });
+
+    const [demographics, setDemographics] = useState({});
+
+    // Helper for safe number formatting
+    const formatNumber = (num) => {
+        if (num === null || num === undefined || isNaN(num)) return '0';
+        return Number(num).toLocaleString('pt-BR');
+    };
 
     const [recentPosts, setRecentPosts] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [postsFilter, setPostsFilter] = useState('30d'); // '30d', '90d', 'all'
-    const itemsPerPage = 5;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         fetchDashboardData();
     }, []);
 
-    // Reset pagination when filter changes
+    // Reset pagination when filter or itemsPerPage changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [postsFilter]);
+    }, [postsFilter, itemsPerPage]);
 
     const fetchDashboardData = async () => {
         setIsLoading(true);
@@ -63,15 +71,44 @@ export default function Dashboard() {
                 setTempGoal(goalData.target_engagement);
             }
 
-            // 2. Fetch Metrics
-            const { data, error } = await supabase
-                .from('metrics_history')
-                .select('*')
-                .eq('user_id', userId)
-                .order('published_at', { ascending: true }); // Important: Ascending for correct chart order
+            // 2. Fetch Metrics (Parallel)
+            const [metricsRes, demoRes, followersRes] = await Promise.all([
+                supabase
+                    .from('metrics_history')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('published_at', { ascending: true }),
+                supabase
+                    .from('demographics_history')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('followers_history')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('recorded_at', { ascending: false })
+            ]);
 
-            if (error) throw error;
-            setAllData(data || []);
+            if (metricsRes.error) throw metricsRes.error;
+            const data = metricsRes.data || [];
+            setAllData(data);
+
+            // Process Demographics (Group by category, keep latest import)
+            if (demoRes.data?.length > 0) {
+                const latestImportId = demoRes.data[0].source_file_id;
+                const latestDemo = demoRes.data.filter(d => d.source_file_id === latestImportId);
+                const grouped = latestDemo.reduce((acc, curr) => {
+                    if (!acc[curr.category]) acc[curr.category] = [];
+                    acc[curr.category].push({ name: curr.label, value: curr.value_percent });
+                    return acc;
+                }, {});
+                setDemographics(grouped);
+            }
+
+            // Process Followers
+            const latestFollowers = followersRes.data?.[0]?.follower_count || 0;
+            const prevFollowers = followersRes.data?.[1]?.follower_count || 0;
 
             if (data && data.length > 0) {
                 // Calculate Stats Card (Current Month vs Previous Month)
@@ -107,28 +144,19 @@ export default function Dashboard() {
                     ? prevMonthData.reduce((acc, curr) => acc + curr.impressions, 0) / prevMonthData.length
                     : 0;
 
-                // Avg Engagement Rate
-                const currRate = currentMonthData.length > 0
-                    ? currentMonthData.reduce((acc, curr) => acc + parseFloat(curr.engagement_rate || 0), 0) / currentMonthData.length
-                    : 0;
-                const prevRate = prevMonthData.length > 0
-                    ? prevMonthData.reduce((acc, curr) => acc + parseFloat(curr.engagement_rate || 0), 0) / prevMonthData.length
-                    : 0;
-
                 setMetrics({
-                    totalEngagement: currEng || data.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0),
+                    totalEngagement: currEng || data.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0) || 0,
                     engagementChange: calculateChange(currEng, prevEng),
-                    totalImpressions: currImpr || data.reduce((acc, curr) => acc + curr.impressions, 0),
+                    totalImpressions: currImpr || data.reduce((acc, curr) => acc + curr.impressions, 0) || 0,
                     impressionsChange: calculateChange(currImpr, prevImpr),
-                    avgReach: Math.round(currReach || (data.reduce((acc, curr) => acc + curr.impressions, 0) / data.length)),
+                    avgReach: Math.round(currReach || (data.length > 0 ? (data.reduce((acc, curr) => acc + curr.impressions, 0) / data.length) : 0)),
                     reachChange: calculateChange(currReach, prevReach),
                     totalPosts: currentMonthData.length || data.length,
                     postsChange: calculateChange(currentMonthData.length, prevMonthData.length),
-                    avgEngagementRate: parseFloat((currRate || (data.reduce((acc, curr) => acc + parseFloat(curr.engagement_rate || 0), 0) / data.length)).toFixed(2)),
-                    rateChange: calculateChange(currRate, prevRate),
+                    totalFollowers: latestFollowers || 0,
+                    followersChange: calculateChange(latestFollowers, prevFollowers),
                 });
 
-                // Recent posts table (Show Link as title)
                 // Map all data, reversed
                 setRecentPosts([...data].reverse().map(m => ({
                     id: m.id,
@@ -139,6 +167,13 @@ export default function Dashboard() {
                     reach: m.impressions,
                     url: m.post_id
                 })));
+            } else {
+                // Keep defaults but update followers
+                setMetrics(prev => ({
+                    ...prev,
+                    totalFollowers: latestFollowers || 0,
+                    followersChange: calculateChange(latestFollowers, prevFollowers),
+                }));
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -293,20 +328,20 @@ export default function Dashboard() {
                 <div className="metrics-row">
                     <MetricsCard
                         title="Impressões Totais"
-                        value={metrics.totalImpressions.toLocaleString()}
+                        value={formatNumber(metrics.totalImpressions)}
                         change={metrics.impressionsChange}
                         icon={Eye}
                         variant="gradient"
                     />
                     <MetricsCard
                         title="Engajamento Total"
-                        value={metrics.totalEngagement.toLocaleString()}
+                        value={formatNumber(metrics.totalEngagement)}
                         change={metrics.engagementChange}
                         icon={TrendingUp}
                     />
                     <MetricsCard
                         title="Alcance Médio"
-                        value={metrics.avgReach.toLocaleString()}
+                        value={formatNumber(metrics.avgReach)}
                         change={metrics.reachChange}
                         icon={Users}
                     />
@@ -317,10 +352,12 @@ export default function Dashboard() {
                         icon={Upload}
                     />
                     <MetricsCard
-                        title="Taxa de Engajamento"
-                        value={`${metrics.avgEngagementRate}%`}
-                        change={metrics.rateChange}
-                        icon={Percent}
+                        title="Seguidores Totais"
+                        value={formatNumber(metrics.totalFollowers)}
+                        change={metrics.followersChange}
+                        icon={Users}
+                        variant="secondary"
+                        comparisonText="vs última importação"
                     />
                 </div>
 
@@ -353,6 +390,7 @@ export default function Dashboard() {
                                     data={impressionsChartData}
                                     dataKey="value"
                                     xKey="name"
+                                    label="Impressões"
                                     hideHeader
                                     fullHeight
                                 />
@@ -385,8 +423,8 @@ export default function Dashboard() {
 
                             {!isEditingGoal ? (
                                 <>
-                                    <div className="goal-current">{weeklyGoalData.current.toLocaleString()}</div>
-                                    <div className="goal-target">Alvo: {weeklyGoalData.target.toLocaleString()}</div>
+                                    <div className="goal-current">{formatNumber(weeklyGoalData.current)}</div>
+                                    <div className="goal-target">Alvo: {formatNumber(weeklyGoalData.target)}</div>
                                 </>
                             ) : (
                                 <div className="goal-edit-container">
@@ -410,19 +448,33 @@ export default function Dashboard() {
                             <h3>Posts Recentes</h3>
                             <Badge variant="secondary">{filteredPosts.length} posts</Badge>
                         </div>
-                        <div className="table-filters">
-                            <button
-                                className={`filter-btn ${postsFilter === '30d' ? 'active' : ''}`}
-                                onClick={() => setPostsFilter('30d')}
-                            >30 Dias</button>
-                            <button
-                                className={`filter-btn ${postsFilter === '90d' ? 'active' : ''}`}
-                                onClick={() => setPostsFilter('90d')}
-                            >90 Dias</button>
-                            <button
-                                className={`filter-btn ${postsFilter === 'all' ? 'active' : ''}`}
-                                onClick={() => setPostsFilter('all')}
-                            >Tudo</button>
+                        <div className="table-actions">
+                            <div className="items-per-page">
+                                <span>Mostrar:</span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+                            </div>
+                            <div className="table-filters">
+                                <button
+                                    className={`filter-btn ${postsFilter === '30d' ? 'active' : ''}`}
+                                    onClick={() => setPostsFilter('30d')}
+                                >30 Dias</button>
+                                <button
+                                    className={`filter-btn ${postsFilter === '90d' ? 'active' : ''}`}
+                                    onClick={() => setPostsFilter('90d')}
+                                >90 Dias</button>
+                                <button
+                                    className={`filter-btn ${postsFilter === 'all' ? 'active' : ''}`}
+                                    onClick={() => setPostsFilter('all')}
+                                >Tudo</button>
+                            </div>
                         </div>
                     </div>
                     {recentPosts.length > 0 && (
@@ -450,9 +502,9 @@ export default function Dashboard() {
                                                     <ExternalLink size={12} className="link-icon" />
                                                 </a>
                                             </td>
-                                            <td>{new Date(post.date).toLocaleDateString('pt-BR')}</td>
-                                            <td className="metric-value">{post.engagement.toLocaleString()}</td>
-                                            <td className="metric-value">{post.reach.toLocaleString()}</td>
+                                            <td>{post.date ? new Date(post.date).toLocaleDateString('pt-BR') : 'Data indisponível'}</td>
+                                            <td className="metric-value">{formatNumber(post.engagement)}</td>
+                                            <td className="metric-value">{formatNumber(post.reach)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -482,6 +534,26 @@ export default function Dashboard() {
                         </div>
                     )}
                 </Card>
+
+                {/* Audiência / Demográficos */}
+                {Object.keys(demographics).length > 0 && (
+                    <div className="demographics-section">
+                        <div className="section-header">
+                            <h2>Audiência</h2>
+                            <p>Distribuição demográfica baseada na última importação</p>
+                        </div>
+                        <div className="demo-grid">
+                            {Object.entries(demographics).map(([category, items]) => (
+                                <Card key={category} className="demo-card">
+                                    <PieChartComponent
+                                        data={items.slice(0, 5)}
+                                        title={category}
+                                    />
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <ImportModal

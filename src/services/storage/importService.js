@@ -22,19 +22,22 @@ export const importService = {
     parseLinkedInXLSX(binaryData) {
         try {
             const workbook = XLSX.read(binaryData, { type: 'array', cellDates: true });
-            let allResults = [];
-            let foundSheet = false;
+            let results = {
+                metrics: [],
+                demographics: [],
+                followers: null
+            };
+            let foundAny = false;
 
-            // Iterate through sheets to find "Publicações", "Updates", or sheets with post metrics
             for (const sheetName of workbook.SheetNames) {
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-                if (jsonData.length < 2) continue;
+                if (jsonData.length < 1) continue;
 
-                // Find header row for this sheet
+                // --- 1. Detect Metrics Table ---
                 let headerIndex = -1;
-                for (let i = 0; i < Math.min(jsonData.length, 30); i++) { // Check first 30 rows
+                for (let i = 0; i < Math.min(jsonData.length, 30); i++) {
                     const rowStr = JSON.stringify(jsonData[i] || []).toLowerCase();
                     const hasMetrics = rowStr.includes('impress') || rowStr.includes('engajamento') || rowStr.includes('alcançad');
                     const hasDimension = rowStr.includes('url') || rowStr.includes('data') || rowStr.includes('título');
@@ -49,48 +52,78 @@ export const importService = {
                     const headers = jsonData[headerIndex];
                     const dataRows = jsonData.slice(headerIndex + 1);
 
-                    const sheetResults = dataRows.map(row => {
-                        // Skip if row is empty or too short
+                    const metrics = dataRows.map(row => {
                         if (!row || row.length < 2) return null;
-
-                        // Check if row has any actual data
-                        const hasAnyData = row.some(cell => cell !== null && cell !== undefined && cell !== '');
-                        if (!hasAnyData) return null;
-
                         const entry = {};
-                        headers.forEach((header, index) => {
-                            if (header) {
-                                // If column appears twice (like in side-by-side tables), 
-                                // take the non-null value if possible
-                                const val = row[index];
-                                if (val !== null && val !== undefined && val !== '') {
-                                    entry[header] = val;
-                                } else if (!entry[header]) {
-                                    entry[header] = val;
-                                }
-                            }
-                        });
-
-                        // Only return if we mapped at least one metric and one dimension
+                        headers.forEach((h, idx) => { if (h) entry[h] = row[idx]; });
                         const mapped = this.mapLinkedInFields(entry);
                         if (mapped.impressions === 0 && mapped.reactions === 0 && !mapped.post_id) return null;
-
                         return mapped;
                     }).filter(Boolean);
 
-                    if (sheetResults.length > 0) {
-                        allResults = [...allResults, ...sheetResults];
-                        foundSheet = true;
-                        console.log(`Dados encontrados na aba: ${sheetName} (${sheetResults.length} registros)`);
+                    if (metrics.length > 0) {
+                        results.metrics = [...results.metrics, ...metrics];
+                        foundAny = true;
+                    }
+                }
+
+                // --- 2. Detect Demographics Table ---
+                let demoHeaderIndex = -1;
+                for (let i = 0; i < Math.min(jsonData.length, 20); i++) {
+                    const rowStr = JSON.stringify(jsonData[i] || []).toLowerCase();
+                    if (rowStr.includes('principais dados demográficos') && rowStr.includes('porcentagem')) {
+                        demoHeaderIndex = i;
+                        break;
+                    }
+                }
+
+                if (demoHeaderIndex !== -1) {
+                    const dataRows = jsonData.slice(demoHeaderIndex + 1);
+                    const demographics = dataRows.map(row => {
+                        if (!row || row.length < 3) return null;
+                        const category = row[0];
+                        const label = row[1];
+                        const percentage = row[2];
+                        if (!category || !label || percentage === undefined) return null;
+
+                        // Parse percentage (e.g., "10%", "menos de 1%" or just 0.1)
+                        let val = 0;
+                        if (typeof percentage === 'string') {
+                            val = parseFloat(percentage.replace(/%/g, '').replace(',', '.'));
+                        } else {
+                            val = percentage * 100; // XLSX might read 10% as 0.1
+                        }
+                        if (isNaN(val)) val = 0;
+
+                        return { category, label, value_percent: val };
+                    }).filter(Boolean);
+
+                    if (demographics.length > 0) {
+                        results.demographics = [...results.demographics, ...demographics];
+                        foundAny = true;
+                    }
+                }
+
+                // --- 3. Detect Followers Count ---
+                for (let i = 0; i < Math.min(jsonData.length, 50); i++) {
+                    const rowStr = JSON.stringify(jsonData[i] || []).toLowerCase();
+                    if (rowStr.includes('total de seguidores') || rowStr.includes('total followers')) {
+                        // Usually the count is in the next cell or same cell
+                        const row = jsonData[i];
+                        const countStr = row.find(cell => !isNaN(parseInt(cell?.toString().replace(/\D/g, ''))));
+                        if (countStr) {
+                            results.followers = parseInt(countStr.toString().replace(/\D/g, ''));
+                            foundAny = true;
+                        }
                     }
                 }
             }
 
-            if (!foundSheet || allResults.length === 0) {
-                throw new Error('Não encontramos uma tabela de dados (com colunas como "Data", "Impressões" ou "URL") em nenhuma das abas do arquivo.');
+            if (!foundAny) {
+                throw new Error('Não conseguimos identificar dados de métricas, demográficos ou seguidores no arquivo.');
             }
 
-            return allResults;
+            return results;
         } catch (error) {
             console.error('Error parsing XLSX:', error);
             throw error;
@@ -220,64 +253,77 @@ export const importService = {
     /**
      * Saves imported data to Supabase with error handling
      */
-    async saveImportedData(userId, fileName, fileSize, metrics) {
-        console.log('Starting saveImportedData for user:', userId);
+    async saveImportedData(userId, fileName, fileSize, results) {
+        console.log('Starting saveImportedData v2.1 for user:', userId);
         if (!userId) return { success: false, error: 'Usuário não autenticado.' };
-        if (!metrics || metrics.length === 0) return { success: false, error: 'Nenhum dado encontrado no arquivo.' };
+
+        const { metrics, demographics, followers } = results;
+        if (!metrics?.length && !demographics?.length && !followers) {
+            return { success: false, error: 'Nenhum dado novo encontrado no arquivo.' };
+        }
 
         try {
             // 1. Log the import
-            console.log('Inserting log for file:', fileName);
             const { data: logData, error: logError } = await supabase
                 .from('imported_files_log')
                 .insert({
                     user_id: userId,
                     file_name: fileName,
                     file_size: fileSize,
-                    rows_count: metrics.length
+                    rows_count: (metrics?.length || 0) + (demographics?.length || 0)
                 })
                 .select()
                 .single();
 
-            if (logError) {
-                console.error('Error in imported_files_log insert:', logError);
-                throw logError;
+            if (logError) throw logError;
+            console.log('Log created successfully:', logData.id);
+
+            // 2. Insert metrics (Post performance)
+            if (metrics?.length > 0) {
+                const uniqueMetrics = new Map();
+                metrics.forEach(m => {
+                    const key = `${userId}-${m.post_id}`;
+                    uniqueMetrics.set(key, { ...m, user_id: userId, source_file_id: logData.id });
+                });
+                const metricsToInsert = Array.from(uniqueMetrics.values());
+
+                const { error: mError } = await supabase
+                    .from('metrics_history')
+                    .upsert(metricsToInsert, { onConflict: 'user_id,post_id' });
+                if (mError) throw mError;
             }
 
-            if (!logData) {
-                console.error('Insert succeeded but no data returned (RLS issue?)');
-                throw new Error('O registro do log foi criado mas não retornou os dados. Verifique as permissões (RLS) no Supabase.');
-            }
-
-            console.log('Log created successfully with ID:', logData.id);
-
-            // 2. Insert metrics with local deduplication to prevent "ON CONFLICT DO UPDATE affect row a second time"
-            const uniqueMetrics = new Map();
-            metrics.forEach(m => {
-                const key = `${userId}-${m.post_id}`;
-                // Last post for the same ID wins
-                uniqueMetrics.set(key, {
-                    ...m,
+            // 3. Insert Demographics
+            if (demographics?.length > 0) {
+                const demoToInsert = demographics.map(d => ({
+                    ...d,
                     user_id: userId,
                     source_file_id: logData.id
-                });
-            });
-
-            const metricsToInsert = Array.from(uniqueMetrics.values());
-
-            console.log(`Upserting ${metricsToInsert.length} unique metrics rows...`);
-            const { error: metricsError } = await supabase
-                .from('metrics_history')
-                .upsert(metricsToInsert, {
-                    onConflict: 'user_id,post_id'
-                });
-
-            if (metricsError) {
-                console.error('Error in metrics_history insert:', metricsError);
-                throw metricsError;
+                }));
+                const { error: dError } = await supabase
+                    .from('demographics_history')
+                    .insert(demoToInsert);
+                if (dError) throw dError;
             }
 
-            return { success: true, count: metrics.length };
+            // 4. Insert Followers
+            if (followers) {
+                const { error: fError } = await supabase
+                    .from('followers_history')
+                    .insert({
+                        user_id: userId,
+                        follower_count: followers,
+                        source_file_id: logData.id
+                    });
+                if (fError) throw fError;
+            }
+
+            return {
+                success: true,
+                count: metrics?.length || 0,
+                hasDemographics: demographics?.length > 0,
+                hasFollowers: !!followers
+            };
         } catch (error) {
             console.error('Error saving imported data:', error);
             return { success: false, error: error.message || 'Erro inesperado ao salvar no banco de dados.' };

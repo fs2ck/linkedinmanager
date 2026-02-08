@@ -28,11 +28,7 @@ export default function Input({
             <div className="input-container">
                 {icon && (
                     <span className="input-icon">
-                        {typeof icon === 'function' || (typeof icon === 'object' && icon.$$typeof) ? (
-                            React.createElement(icon, { size: 18 })
-                        ) : (
-                            icon
-                        )}
+                        {React.isValidElement(icon) ? icon : React.createElement(icon, { size: 18 })}
                     </span>
                 )}
                 <input
