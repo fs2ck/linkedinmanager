@@ -20,7 +20,7 @@ import {
     ChevronRight,
     Clock
 } from 'lucide-react';
-import PostDetailModal from './PostDetailModal';
+import PostEditorModal from './PostEditorModal';
 import Button from '../ui/Button';
 import './PlannerCalendar.css';
 
@@ -152,11 +152,9 @@ const PlannerCalendar = ({ onOpenDelete }) => {
                 })}
             </div>
 
-            <PostDetailModal
+            <PostEditorModal
                 post={selectedPost}
-                isOpen={!!selectedPost}
                 onClose={() => setSelectedPost(null)}
-                pillar={selectedPost ? pillars.find(p => p.id === selectedPost.pillar_id) : null}
             />
         </div>
     );

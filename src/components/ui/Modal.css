@@ -20,6 +20,18 @@
     max-height: 90vh;
 }
 
+.modal-lg {
+    max-width: 900px;
+}
+
+.modal-fullscreen {
+    max-width: 95vw;
+    max-height: 95vh;
+    width: 95vw;
+    height: 95vh;
+    margin: 0;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -32,6 +44,12 @@
     padding: 1.5rem;
     overflow-y: auto;
     flex: 1;
+}
+
+/* Fullscreen modal body should not have padding or overflow */
+.modal-fullscreen .modal-body {
+    padding: 0;
+    overflow: hidden;
 }
 
 .modal-footer {

@@ -233,6 +233,52 @@ export const storageService = {
         if (error) throw error;
         return data;
     },
+
+    async deletePlannedPost(id) {
+        const { error } = await supabase
+            .from('planned_posts')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    async schedulePost(id, scheduledDate) {
+        const { data, error } = await supabase
+            .from('planned_posts')
+            .update({
+                scheduled_date: scheduledDate,
+                status: 'scheduled'
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async uploadMedia(file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `post-media/${fileName}`;
+
+        const { data, error } = await supabase.storage
+            .from('media')
+            .upload(filePath, file);
+
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('media')
+            .getPublicUrl(filePath);
+
+        return {
+            url: publicUrl,
+            path: filePath,
+            type: file.type
+        };
+    },
     // Weekly Goals (Manual)
     async getWeeklyGoal(userId) {
         const { data, error } = await supabase

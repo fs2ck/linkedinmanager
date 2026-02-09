@@ -1,0 +1,78 @@
+/* RichTextEditor Component Styles */
+.rich-text-editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.rich-text-editor-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    display: block;
+}
+
+.rich-text-editor {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-primary);
+    transition: var(--transition-base);
+}
+
+.rich-text-editor:hover {
+    border-color: var(--border-medium);
+}
+
+.rich-text-editor:focus-within {
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.rich-text-editor-error {
+    border-color: var(--color-danger);
+}
+
+.rich-text-editor-error:focus-within {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.rich-text-editor-disabled {
+    background-color: var(--color-slate-100);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.rich-text-editor-error-message {
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+    margin-top: -0.25rem;
+}
+
+/* Textarea Styling */
+.rich-text-textarea {
+    width: 100%;
+    padding: 1rem;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family-base);
+    color: var(--text-primary);
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    resize: vertical;
+    min-height: 200px;
+    line-height: 1.6;
+}
+
+.rich-text-textarea:focus {
+    outline: none;
+}
+
+.rich-text-textarea::placeholder {
+    color: var(--color-slate-400);
+}
+
+.rich-text-textarea:disabled {
+    cursor: not-allowed;
+}

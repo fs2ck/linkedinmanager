@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './Modal.css';
 
-const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
+const Modal = ({ isOpen, onClose, title, children, footer, size = 'md', hideHeader = false, hideFooter = false }) => {
     const modalRef = useRef(null);
 
     useEffect(() => {
@@ -27,35 +28,30 @@ const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
         if (e.target === e.currentTarget) onClose();
     };
 
-    const sizeClasses = {
-        popup: 'max-w-sm w-full m-4',
-        sm: 'max-w-md w-full m-4',
-        md: 'max-w-xl w-full m-4',
-        lg: 'max-w-3xl w-full m-4',
-        xl: 'max-w-5xl w-full m-4',
-        full: 'max-w-full m-4'
-    };
+    const sizeClass = size === 'fullscreen' ? 'modal-fullscreen' : '';
 
-    return (
+    const modalContent = (
         <div className="modal-backdrop animate-fade-in" onClick={handleBackdropClick}>
             <div
                 ref={modalRef}
-                className={`modal-content ${sizeClasses[size] || sizeClasses.md} animate-scale-in`}
+                className={`modal-content ${sizeClass} animate-scale-in`}
                 role="dialog"
                 aria-modal="true"
             >
-                <div className="modal-header">
-                    <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
+                {!hideHeader && (
+                    <div className="modal-header">
+                        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <X size={24} />
+                        </button>
+                    </div>
+                )}
 
                 <div className="modal-body">
                     {children}
                 </div>
 
-                {footer && (
+                {!hideFooter && footer && (
                     <div className="modal-footer">
                         {footer}
                     </div>
@@ -63,6 +59,9 @@ const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
             </div>
         </div>
     );
+
+    // Use portal to render modal at document.body level
+    return createPortal(modalContent, document.body);
 };
 
 export default Modal;

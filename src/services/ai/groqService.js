@@ -81,5 +81,241 @@ export const groqService = {
             console.error("Groq Generation Error:", error);
             throw error;
         }
+    },
+
+    async generatePostContent({ title, format, objective, perspective, toneOfVoice, size }) {
+        if (!groq) throw new Error("Groq API Key unavailable");
+
+        const sizeMap = {
+            'Curto (50-100 palavras)': '50-100 palavras',
+            'Médio (150-250 palavras)': '150-250 palavras',
+            'Longo (300-500 palavras)': '300-500 palavras'
+        };
+
+        const targetSize = sizeMap[size] || size;
+
+        const contentPrompt = `
+        Você é um especialista em criação de conteúdo para LinkedIn, focado em personal branding executivo e B2B.
+
+        **TAREFA**: Criar um post para LinkedIn com as seguintes especificações:
+
+        **TÍTULO/TEMA**: ${title}
+        **FORMATO**: ${format}
+        **OBJETIVO**: ${objective}
+        **PERSPECTIVA**: ${perspective}
+        **TOM DE VOZ**: ${toneOfVoice}
+        **TAMANHO**: ${targetSize}
+
+        **DIRETRIZES**:
+        1. Use linguagem executiva e estratégica
+        2. Seja direto e evite fluff
+        3. Inclua insights acionáveis
+        4. Use formatação LinkedIn (quebras de linha, emojis estratégicos)
+        5. Termine com uma pergunta ou call-to-action quando apropriado
+        6. Respeite o tamanho solicitado
+
+        **FORMATO DE SAÍDA**:
+        Retorne APENAS o conteúdo do post, sem aspas, sem prefixos como "Post:" ou similares.
+        O texto deve estar pronto para ser copiado e colado no LinkedIn.
+        `;
+
+        try {
+            const completion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: "Você é um especialista em criação de conteúdo para LinkedIn com foco em C-level e estratégia executiva." },
+                    { role: "user", content: contentPrompt }
+                ],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.8,
+                max_tokens: 1024
+            });
+
+            const content = completion.choices[0]?.message?.content;
+            if (!content) throw new Error("No content generated");
+
+            return content.trim();
+        } catch (error) {
+            console.error("Groq Content Generation Error:", error);
+            throw error;
+        }
+    },
+
+    async refineDraft({ content, instructions }) {
+        if (!groq) throw new Error("Groq API Key unavailable");
+
+        const refinePrompt = `
+        Você é um especialista em refinar conteúdo para LinkedIn com foco em personal branding executivo.
+
+        **CONTEÚDO ATUAL**:
+        ${content}
+
+        **INSTRUÇÕES DE REFINAMENTO**:
+        ${instructions}
+
+        **DIRETRIZES**:
+        1. Mantenha a essência e mensagem principal do conteúdo original
+        2. Aplique as instruções fornecidas de forma precisa
+        3. Use linguagem executiva e profissional
+        4. Mantenha a formatação adequada para LinkedIn
+        5. Preserve emojis estratégicos se existirem
+
+        **FORMATO DE SAÍDA**:
+        Retorne APENAS o conteúdo refinado, sem explicações adicionais.
+        O texto deve estar pronto para ser usado diretamente.
+        `;
+
+        try {
+            const completion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: "Você é um especialista em refinar conteúdo para LinkedIn com foco em C-level e estratégia executiva." },
+                    { role: "user", content: refinePrompt }
+                ],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.7,
+                max_tokens: 1024
+            });
+
+            const refined = completion.choices[0]?.message?.content;
+            if (!refined) throw new Error("No refined content generated");
+
+            return refined.trim();
+        } catch (error) {
+            console.error("Groq Refine Error:", error);
+            throw error;
+        }
+    },
+
+    async suggestImprovements(content) {
+        if (!groq) throw new Error("Groq API Key unavailable");
+
+        const suggestPrompt = `
+        Você é um consultor especializado em conteúdo LinkedIn para executivos e C-level.
+
+        **CONTEÚDO PARA ANÁLISE**:
+        ${content}
+
+        **TAREFA**:
+        Analise o conteúdo acima e forneça sugestões específicas e acionáveis para melhorá-lo.
+
+        **FOQUE EM**:
+        1. **Estrutura**: O post tem um gancho forte? A progressão faz sentido?
+        2. **Clareza**: A mensagem é clara e direta?
+        3. **Engajamento**: O conteúdo incentiva interação?
+        4. **Autoridade**: Demonstra expertise e pensamento estratégico?
+        5. **Formatação**: Está otimizado para leitura no LinkedIn?
+
+        **FORMATO DE SAÍDA**:
+        Forneça 3-5 sugestões concretas e específicas, numeradas.
+        Seja direto e prático. Evite generalidades.
+        `;
+
+        try {
+            const completion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: "Você é um consultor especializado em conteúdo LinkedIn para executivos." },
+                    { role: "user", content: suggestPrompt }
+                ],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.7,
+                max_tokens: 800
+            });
+
+            const suggestions = completion.choices[0]?.message?.content;
+            if (!suggestions) throw new Error("No suggestions generated");
+
+            return suggestions.trim();
+        } catch (error) {
+            console.error("Groq Suggestions Error:", error);
+            throw error;
+        }
+    },
+
+    async chatWithAgent({ messages, systemPrompt }) {
+        if (!groq) throw new Error("Groq API Key unavailable");
+
+        const defaultSystemPrompt = "Você é um assistente especializado em criação e refinamento de conteúdo para LinkedIn, com foco em personal branding executivo e C-level.";
+
+        try {
+            const completion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: systemPrompt || defaultSystemPrompt },
+                    ...messages
+                ],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.8,
+                max_tokens: 1024
+            });
+
+            const response = completion.choices[0]?.message?.content;
+            if (!response) throw new Error("No response generated");
+
+            return response.trim();
+        } catch (error) {
+            console.error("Groq Chat Error:", error);
+            throw error;
+        }
+    },
+
+    async generateDraft({ topic, tone, length, context }) {
+        if (!groq) throw new Error("Groq API Key unavailable");
+
+        const lengthMap = {
+            'short': '100-150 palavras',
+            'medium': '150-250 palavras',
+            'long': '250-400 palavras'
+        };
+
+        const toneMap = {
+            'professional': 'profissional e executivo',
+            'casual': 'casual e acessível',
+            'inspirational': 'inspirador e motivacional',
+            'educational': 'educacional e didático'
+        };
+
+        const targetLength = lengthMap[length] || length;
+        const targetTone = toneMap[tone] || tone;
+
+        const draftPrompt = `
+        Você é um especialista em criação de conteúdo para LinkedIn com foco em personal branding executivo.
+
+        **TAREFA**: Criar um rascunho de post para LinkedIn sobre o seguinte tópico:
+
+        **TÓPICO**: ${topic}
+        **TOM DE VOZ**: ${targetTone}
+        **TAMANHO**: ${targetLength}
+        ${context ? `**CONTEXTO ADICIONAL**: ${context}` : ''}
+
+        **DIRETRIZES**:
+        1. Use linguagem adequada ao tom solicitado
+        2. Seja direto e evite fluff
+        3. Inclua insights valiosos e acionáveis
+        4. Use formatação LinkedIn (quebras de linha, emojis estratégicos quando apropriado)
+        5. Termine com uma pergunta ou call-to-action para incentivar engajamento
+        6. Respeite rigorosamente o tamanho solicitado
+
+        **FORMATO DE SAÍDA**:
+        Retorne APENAS o conteúdo do post, sem aspas, sem prefixos como "Post:" ou similares.
+        O texto deve estar pronto para ser copiado e colado no LinkedIn.
+        `;
+
+        try {
+            const completion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: "Você é um especialista em criação de conteúdo para LinkedIn com foco em personal branding executivo e C-level." },
+                    { role: "user", content: draftPrompt }
+                ],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.8,
+                max_tokens: 1024
+            });
+
+            const draft = completion.choices[0]?.message?.content;
+            if (!draft) throw new Error("No draft generated");
+
+            return draft.trim();
+        } catch (error) {
+            console.error("Groq Draft Generation Error:", error);
+            throw error;
+        }
     }
 };
