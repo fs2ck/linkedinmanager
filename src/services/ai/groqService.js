@@ -35,6 +35,8 @@ Return a JSON object with a "posts" field, which is an array of objects. Each ob
 - "format": String (Framework, Provocação, Storytelling, Opinião, Reflexão, Caso de uso)
 - "objective": String (Autoridade técnica, Debate executivo, Visibilidade C-level)
 - "perspective": String (The unique angle)
+- "tone_of_voice": String (Profissional, Analítico, Inspirador, Provocativo)
+- "size": String (Curto (50-100 palavras), Médio (150-250 palavras), Longo (300-500 palavras))
 `;
 
 export const groqService = {
@@ -45,19 +47,46 @@ export const groqService = {
             `- ID: ${p.id}\n  NAME: ${p.name}\n  KEY MESSAGE: ${p.key_message}\n  FOCUS: ${p.focus_area}\n  PROPORTION: ${p.proportion}%`
         ).join('\n\n');
 
+        // Convert schedule_days to weekday names for clarity
+        const dayMap = {
+            'Monday': 'Segunda-feira',
+            'Tuesday': 'Terça-feira',
+            'Wednesday': 'Quarta-feira',
+            'Thursday': 'Quinta-feira',
+            'Friday': 'Sexta-feira',
+            'Saturday': 'Sábado',
+            'Sunday': 'Domingo'
+        };
+
+        const scheduleDaysFormatted = cycleData.schedule_days.map(day => `${day} (${dayMap[day]})`).join(', ');
+
         const userPrompt = `
         I need a content plan for a "${cycleData.duration_days}-day" cycle starting on "${cycleData.start_date}".
         
         **THESIS**: "${cycleData.thesis}"
-        **DAYS**: ${cycleData.schedule_days.join(', ')}
+        **ALLOWED WEEKDAYS**: ${scheduleDaysFormatted}
         
         **PILLARS**:
         ${pillarsContext}
 
+        **CRITICAL DATE CALCULATION RULES**:
+        1. Start date: ${cycleData.start_date} (YYYY-MM-DD format)
+        2. ONLY schedule posts on these weekdays: ${cycleData.schedule_days.join(', ')}
+        3. Calculate each post date by finding the NEXT occurrence of an allowed weekday
+        4. Example: If start is Monday 2026-02-03 and allowed days are [Monday, Wednesday, Friday]:
+           - Post 1: 2026-02-03 (Monday)
+           - Post 2: 2026-02-05 (Wednesday)
+           - Post 3: 2026-02-07 (Friday)
+           - Post 4: 2026-02-10 (Monday)
+           - Post 5: 2026-02-12 (Wednesday)
+           - Continue this pattern...
+        5. NEVER use weekdays not in the allowed list
+        6. Double-check each date to ensure it falls on an allowed weekday
+
         **INSTRUCTIONS**:
         1. Create posts strictly adhering to pillar proportions.
-        2. Distribute dates correctly (e.g., only on Mon, Wed, Fri if specified).
-        3. Ensure variety in formats.
+        2. Calculate dates PRECISELY using the rules above - verify each date's weekday.
+        3. Ensure variety in formats, objectives, tones, and sizes.
         4. Return ONLY valid JSON.
         `;
 

@@ -28,7 +28,7 @@ export default function PostEditorModal({ post, onClose }) {
         size: post?.size || '',
         content: post?.content || '',
         media_url: post?.media_url || '',
-        scheduled_date: post?.scheduled_date ? new Date(post.scheduled_date) : null,
+        date: post?.date || post?.scheduled_date ? new Date(post.date || post.scheduled_date) : null,
         status: post?.status || 'draft'
     });
 
@@ -36,7 +36,6 @@ export default function PostEditorModal({ post, onClose }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [lastSaved, setLastSaved] = useState(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -88,6 +87,7 @@ export default function PostEditorModal({ post, onClose }) {
             // Ensure status is valid for database constraint
             const dataToSave = {
                 ...formData,
+                date: formData.date ? formData.date.toISOString() : null,
                 status: formData.status === 'draft' ? 'planned' : formData.status
             };
             await storageService.updatePlannedPost(post.id, dataToSave);
@@ -114,7 +114,7 @@ export default function PostEditorModal({ post, onClose }) {
                 size: post.size || '',
                 content: post.content || '',
                 media_url: post.media_url || '',
-                scheduled_date: post.scheduled_date ? new Date(post.scheduled_date) : null,
+                date: post.date || post.scheduled_date ? new Date(post.date || post.scheduled_date) : null,
                 status: post.status || 'draft'
             };
             setFormData(newFormData);
@@ -169,28 +169,6 @@ export default function PostEditorModal({ post, onClose }) {
     };
 
     // Handle scheduling
-    const handleSchedule = async () => {
-        if (!formData.scheduled_date) {
-            alert('Por favor, selecione uma data e hora.');
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            await storageService.schedulePost(post.id, formData.scheduled_date);
-            await updatePlannedPost(post.id, {
-                ...formData,
-                status: 'scheduled'
-            });
-            setShowScheduleModal(false);
-            onClose();
-        } catch (error) {
-            console.error('Error scheduling post:', error);
-            alert('Erro ao agendar publicação.');
-        } finally {
-            setIsSaving(false);
-        }
-    };
 
     // Handle deletion
     const handleDelete = async () => {
@@ -290,7 +268,14 @@ export default function PostEditorModal({ post, onClose }) {
                                     />
                                 </div>
 
-                                <div className="post-editor-config-grid">
+                                <div className="post-editor-config-grid post-editor-config-grid-3">
+                                    <DateTimePicker
+                                        label="DATA E HORA"
+                                        value={formData.date}
+                                        onChange={(date) => handleChange('date', date)}
+                                        minDate={new Date()}
+                                        placeholderText="Agendar publicação..."
+                                    />
                                     <Select
                                         label="TOM DE VOZ"
                                         value={formData.tone_of_voice}
@@ -360,13 +345,6 @@ export default function PostEditorModal({ post, onClose }) {
                             >
                                 Salvar Rascunho
                             </Button>
-                            <Button
-                                onClick={() => setShowScheduleModal(true)}
-                                icon={Calendar}
-                                disabled={isSaving}
-                            >
-                                Agendar Post
-                            </Button>
                         </div>
                     </div>
                 </div>
@@ -394,33 +372,7 @@ export default function PostEditorModal({ post, onClose }) {
                 </Modal>
             )}
 
-            {/* Schedule Modal */}
-            {showScheduleModal && (
-                <Modal
-                    isOpen={showScheduleModal}
-                    onClose={() => setShowScheduleModal(false)}
-                    title="Agendar Publicação"
-                    size="popup"
-                    footer={
-                        <div className="modal-footer-actions">
-                            <Button variant="ghost" onClick={() => setShowScheduleModal(false)}>
-                                Cancelar
-                            </Button>
-                            <Button onClick={handleSchedule} disabled={isSaving || !formData.scheduled_date}>
-                                Confirmar Agendamento
-                            </Button>
-                        </div>
-                    }
-                >
-                    <DateTimePicker
-                        label="Data e Hora"
-                        value={formData.scheduled_date}
-                        onChange={(date) => handleChange('scheduled_date', date)}
-                        showTimeSelect
-                        minDate={new Date()}
-                    />
-                </Modal>
-            )}
+
         </>
     );
 }

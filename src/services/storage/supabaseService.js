@@ -247,7 +247,7 @@ export const storageService = {
         const { data, error } = await supabase
             .from('planned_posts')
             .update({
-                scheduled_date: scheduledDate,
+                date: scheduledDate,
                 status: 'scheduled'
             })
             .eq('id', id)

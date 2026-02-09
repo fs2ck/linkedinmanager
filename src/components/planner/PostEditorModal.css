@@ -107,11 +107,25 @@
     margin: 0 0 0.5rem 0;
 }
 
-/* Configuration Grid */
+/* Configuration Grid (2 columns by default) */
 .post-editor-config-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
+}
+
+/* Configuration Grid (3 columns for Tom, Tamanho, Data) */
+.post-editor-config-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 768px) {
+    .post-editor-config-grid-3 {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Generate Button */
