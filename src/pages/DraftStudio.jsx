@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Sparkles, Wand2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Wand2, Trash2, BookOpen, Clock, Plus, Share2 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -7,7 +7,10 @@ import Input, { Textarea } from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
 import { groqService as aiService } from '../services/ai/groqService';
 import { usePostStore } from '../stores/useStore';
+import SendToPlannerModal from '../components/planner/SendToPlannerModal';
 import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import './DraftStudio.css';
 
 export default function DraftStudio() {
@@ -17,8 +20,16 @@ export default function DraftStudio() {
     const [context, setContext] = useState('');
     const [generating, setGenerating] = useState(false);
     const [generatedDraft, setGeneratedDraft] = useState('');
+    const [editingId, setEditingId] = useState(null);
+    const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
 
-    const createPost = usePostStore((state) => state.createPost);
+    const { posts, fetchPosts, createPost, updatePost, deletePost, loading: postsLoading } = usePostStore();
+
+    useEffect(() => {
+        fetchPosts();
+    }, [fetchPosts]);
+
+    const drafts = posts.filter(p => p.status === 'draft');
 
     const handleGenerate = async () => {
         if (!topic.trim()) {
@@ -43,21 +54,55 @@ export default function DraftStudio() {
         }
     };
 
+    const handleNewDraft = () => {
+        setEditingId(null);
+        setTopic('');
+        setGeneratedDraft('');
+        setContext('');
+    };
+
     const handleSaveDraft = async () => {
         if (!generatedDraft) return;
 
         try {
-            await createPost({
-                title: topic,
-                content: generatedDraft,
-                status: 'draft',
-            });
-            toast.success('Rascunho salvo!');
-            setGeneratedDraft('');
-            setTopic('');
-            setContext('');
+            if (editingId) {
+                await updatePost(editingId, {
+                    title: topic,
+                    content: generatedDraft
+                });
+                toast.success('Rascunho atualizado!');
+            } else {
+                const newPost = await createPost({
+                    title: topic,
+                    content: generatedDraft,
+                    status: 'draft',
+                });
+                setEditingId(newPost.id);
+                toast.success('Rascunho salvo!');
+            }
         } catch (error) {
             toast.error('Erro ao salvar rascunho');
+        }
+    };
+
+    const handleLoadDraft = (draft) => {
+        setEditingId(draft.id);
+        setTopic(draft.title);
+        setGeneratedDraft(draft.content);
+        toast.success('Rascunho carregado!');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleDeleteDraft = async (e, id) => {
+        e.stopPropagation();
+        if (confirm('Tem certeza que deseja excluir este rascunho?')) {
+            try {
+                await deletePost(id);
+                if (editingId === id) handleNewDraft();
+                toast.success('Rascunho excluído');
+            } catch (error) {
+                toast.error('Erro ao excluir rascunho');
+            }
         }
     };
 
@@ -75,14 +120,26 @@ export default function DraftStudio() {
     ];
 
     return (
-        <DashboardLayout title="Gerador de Rascunhos">
+        <DashboardLayout
+            title="Draft Studio"
+            headerActions={
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Plus size={16} />}
+                    onClick={handleNewDraft}
+                >
+                    Novo Rascunho
+                </Button>
+            }
+        >
             <div className="draft-studio-container">
                 <div className="draft-studio-grid">
                     {/* Generation Form */}
                     <Card className="generation-form">
                         <h2 className="section-title">
                             <Sparkles size={24} />
-                            Gerar Novo Rascunho
+                            {editingId ? 'Editando Rascunho' : 'Gerar Novo Rascunho'}
                         </h2>
 
                         <div className="form-group">
@@ -145,13 +202,13 @@ export default function DraftStudio() {
                             disabled={generating}
                             icon={<Wand2 size={20} />}
                         >
-                            {generating ? 'Gerando...' : 'Gerar Rascunho com IA'}
+                            {generating ? 'Gerando...' : (editingId ? 'Gerar Novamente' : 'Gerar Rascunho com IA')}
                         </Button>
                     </Card>
 
                     {/* Generated Draft Preview */}
                     <Card className="draft-preview">
-                        <h2 className="section-title">Rascunho Gerado</h2>
+                        <h2 className="section-title">Visualização</h2>
 
                         {generatedDraft ? (
                             <>
@@ -162,30 +219,93 @@ export default function DraftStudio() {
                                 <div className="draft-actions">
                                     <Button
                                         variant="secondary"
-                                        onClick={() => setGeneratedDraft('')}
+                                        size="sm"
+                                        icon={<Share2 size={16} />}
+                                        onClick={() => setIsPlannerModalOpen(true)}
                                     >
-                                        Descartar
+                                        Transformar em Planejamento
                                     </Button>
-                                    <Button
-                                        variant="primary"
-                                        onClick={handleSaveDraft}
-                                    >
-                                        Salvar Rascunho
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setGeneratedDraft('')}
+                                        >
+                                            Descartar
+                                        </Button>
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            onClick={handleSaveDraft}
+                                        >
+                                            {editingId ? 'Salvar Edição' : 'Salvar Rascunho'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </>
                         ) : (
                             <div className="empty-state">
                                 <Sparkles size={48} className="empty-icon" />
-                                <p>Seu rascunho gerado aparecerá aqui</p>
+                                <p>Carregue um rascunho ou gere um novo</p>
                                 <p className="empty-hint">
-                                    Preencha o formulário e clique em "Gerar Rascunho com IA"
+                                    Sua obra aparecerá aqui
                                 </p>
                             </div>
                         )}
                     </Card>
                 </div>
+
+                {/* Drafts Gallery */}
+                <div className="drafts-gallery-section">
+                    <h2 className="section-title">
+                        <BookOpen size={24} />
+                        Galeria de Rascunhos
+                    </h2>
+
+                    <div className="drafts-list-grid">
+                        {drafts.length === 0 ? (
+                            <Card className="empty-gallery">
+                                <p>Nenhum rascunho salvo ainda.</p>
+                            </Card>
+                        ) : (
+                            drafts.map((draft) => (
+                                <Card
+                                    key={draft.id}
+                                    className={`draft-card ${editingId === draft.id ? 'editing' : ''}`}
+                                    onClick={() => handleLoadDraft(draft)}
+                                >
+                                    <div className="draft-card-header">
+                                        <h3 className="draft-card-title">{draft.title}</h3>
+                                        <button
+                                            className="delete-draft-btn"
+                                            onClick={(e) => handleDeleteDraft(e, draft.id)}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="draft-card-preview">
+                                        {draft.content.substring(0, 150)}...
+                                    </div>
+                                    <div className="draft-card-footer">
+                                        <div className="draft-date">
+                                            <Clock size={14} />
+                                            {format(new Date(draft.created_at), "dd 'de' MMMM", { locale: ptBR })}
+                                        </div>
+                                        <Badge variant="neutral">Rascunho</Badge>
+                                    </div>
+                                </Card>
+                            ))
+                        )}
+                    </div>
+                </div>
             </div>
+
+            <SendToPlannerModal
+                isOpen={isPlannerModalOpen}
+                onClose={() => setIsPlannerModalOpen(false)}
+                draftContent={generatedDraft}
+                draftTitle={topic}
+            />
         </DashboardLayout>
     );
 }

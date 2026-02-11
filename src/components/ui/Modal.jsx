@@ -28,7 +28,11 @@ const Modal = ({ isOpen, onClose, title, children, footer, size = 'md', hideHead
         if (e.target === e.currentTarget) onClose();
     };
 
-    const sizeClass = size === 'fullscreen' ? 'modal-fullscreen' : '';
+    const sizeClass = size === 'fullscreen'
+        ? 'modal-fullscreen'
+        : size === 'sm' || size === 'md' || size === 'lg'
+            ? `modal-${size}`
+            : 'modal-md';
 
     const modalContent = (
         <div className="modal-backdrop animate-fade-in" onClick={handleBackdropClick}>
