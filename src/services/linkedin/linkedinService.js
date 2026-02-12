@@ -25,7 +25,7 @@ export const linkedinService = {
         if (timeUntilPost > 0) {
             setTimeout(() => {
                 if ('Notification' in window && Notification.permission === 'granted') {
-                    new Notification('LinkedIn Manager', {
+                    new Notification('ElevateIn', {
                         body: 'Hora de publicar seu post no LinkedIn!',
                         icon: '/logo.png',
                     });

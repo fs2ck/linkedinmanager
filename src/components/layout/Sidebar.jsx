@@ -8,6 +8,7 @@ import {
     Settings
 } from 'lucide-react';
 import Avatar from '../ui/Avatar';
+import Logo from '../ui/Logo';
 import './Sidebar.css';
 
 const menuItems = [
@@ -26,8 +27,10 @@ export default function Sidebar() {
         <aside className="sidebar">
             <div className="sidebar-header">
                 <div className="sidebar-logo">
-                    <div className="logo-icon">LM</div>
-                    <span className="logo-text">LinkedIn Manager</span>
+                    <div className="logo-icon-wrapper">
+                        <Logo size={28} className="logo-icon-svg" />
+                    </div>
+                    <span className="logo-text">ElevateIn</span>
                 </div>
             </div>
 

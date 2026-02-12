@@ -19,21 +19,30 @@
 .sidebar-logo {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 12px;
 }
 
-.logo-icon {
-    width: 42px;
-    height: 42px;
-    background: var(--gradient-premium);
-    color: white;
-    border-radius: var(--radius-md);
+.logo-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: var(--font-weight-bold);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 65, 130, 0.2);
+}
+
+.logo-icon-svg {
+    color: white;
+}
+
+.logo-text {
     font-size: 1.25rem;
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.5px;
 }
 
 .sidebar-nav {

@@ -1,6 +1,6 @@
-# LinkedIn Manager
+# ElevateIn
 
-Plataforma AI-First para gestão completa de posicionamento no LinkedIn.
+Plataforma AI-First para gestão completa de posicionamento no LinkedIn e crescimento executivo.
 
 ## 🚀 Funcionalidades
 

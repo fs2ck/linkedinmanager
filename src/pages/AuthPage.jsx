@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { LogIn, UserPlus, Linkedin, ShieldCheck } from 'lucide-react';
+import { LogIn, UserPlus, ShieldCheck } from 'lucide-react';
+import Logo from '../components/ui/Logo';
 import { authService } from '../services/storage/supabaseService';
 import { useAuthStore } from '../stores/authStore';
 import Button from '../components/ui/Button';
@@ -54,9 +55,9 @@ export default function AuthPage() {
             <div className="auth-content">
                 <div className="auth-logo-section">
                     <div className="auth-icon-wrapper">
-                        <Linkedin size={32} className="auth-icon" />
+                        <Logo size={40} className="auth-icon" />
                     </div>
-                    <h1 className="auth-title">LinkedIn Manager</h1>
+                    <h1 className="auth-title">ElevateIn</h1>
                     <p className="auth-subtitle">Sua estratégia de conteúdo elevada por IA</p>
                 </div>
 
