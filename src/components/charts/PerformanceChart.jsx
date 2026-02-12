@@ -10,8 +10,15 @@ export function BarChartComponent({
     fullHeight = false,
     hideHeader = false,
     layout = 'horizontal', // 'horizontal' (default) or 'vertical'
-    color = "var(--color-primary-500)"
+    color = "var(--color-primary-500)",
+    isPercentage = true
 }) {
+    const formatValue = (value) => {
+        if (value === null || value === undefined) return isPercentage ? '0%' : '0';
+        if (isPercentage) return `${value}%`;
+        return Number(value).toLocaleString('pt-BR');
+    };
+
     return (
         <div className={`chart-container ${fullHeight ? 'chart-full-height' : ''}`}>
             {!hideHeader && title && <h3 className="chart-title">{title}</h3>}
@@ -31,7 +38,11 @@ export function BarChartComponent({
                         {layout === 'horizontal' ? (
                             <>
                                 <XAxis dataKey={xKey} stroke="var(--text-tertiary)" tick={{ fontSize: 12 }} interval={0} />
-                                <YAxis stroke="var(--text-tertiary)" tick={{ fontSize: 12 }} />
+                                <YAxis
+                                    stroke="var(--text-tertiary)"
+                                    tick={{ fontSize: 12 }}
+                                    tickFormatter={(val) => isPercentage ? `${val}%` : val}
+                                />
                             </>
                         ) : (
                             <>
@@ -44,8 +55,8 @@ export function BarChartComponent({
                             cursor={{ fill: 'var(--bg-secondary)', opacity: 0.4 }}
                             labelFormatter={(value) => label ? `${label}: ${value}` : value}
                             formatter={(value) => [
-                                (value !== null && value !== undefined) ? `${value}%` : '0%',
-                                label || 'Porcentagem'
+                                formatValue(value),
+                                label || (isPercentage ? 'Porcentagem' : 'Valor')
                             ]}
                             contentStyle={{
                                 background: 'var(--bg-primary)',

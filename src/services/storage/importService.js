@@ -42,42 +42,56 @@ export const importService = {
 
             // Iterate over all worksheets
             workbook.eachSheet((worksheet, sheetId) => {
-                // Convert sheet to JSON-like structure (array of arrays) to reuse logic or process row by row
-                // ExcelJS iterates rows 1-based.
-
-                // We'll collect rows first to easy scanning
                 const rows = [];
-                worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
-                    // row.values is [empty, cell1, cell2...] because of 1-based index
-                    // We slice(1) to get 0-based array matching generic logic
+                worksheet.eachRow({ includeEmpty: true }, (row) => {
                     rows.push(row.values.slice(1));
                 });
 
                 if (rows.length < 1) return;
 
-                // --- 1. Detect Metrics Table ---
-                let headerIndex = -1;
-                for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                // Find all potential headers
+                const headerIndices = [];
+                for (let i = 0; i < Math.min(rows.length, 100); i++) {
                     const rowStr = JSON.stringify(rows[i] || []).toLowerCase();
                     const hasMetrics = rowStr.includes('impress') || rowStr.includes('engajamento') || rowStr.includes('alcançad');
                     const hasDimension = rowStr.includes('url') || rowStr.includes('data') || rowStr.includes('título');
 
                     if (hasMetrics && hasDimension) {
-                        headerIndex = i;
-                        break;
+                        // Check if this is a real header (not just a data row containing keywords)
+                        if (rows[i].length >= 2) {
+                            headerIndices.push(i);
+                        }
                     }
                 }
 
-                if (headerIndex !== -1) {
-                    const headers = rows[headerIndex];
-                    const dataRows = rows.slice(headerIndex + 1);
+                // Process each table found
+                headerIndices.forEach(hIndex => {
+                    const headers = rows[hIndex];
+                    const dataRows = [];
+
+                    // Collect rows until an empty row or a new header is found
+                    for (let j = hIndex + 1; j < rows.length; j++) {
+                        const row = rows[j];
+                        if (!row || row.length === 0 || (row.every(c => !c) && j > hIndex + 5)) break;
+                        // Stop if we hit another header
+                        if (headerIndices.includes(j)) break;
+                        dataRows.push(row);
+                    }
 
                     const metrics = dataRows.map(row => {
                         if (!row || row.length < 2) return null;
                         const entry = {};
                         headers.forEach((h, idx) => { if (h) entry[h] = row[idx]; });
                         const mapped = this.mapLinkedInFields(entry);
-                        // Filter out empty rows or total rows that might not be actual posts
+
+                        // Handle Daily Metrics specifically (rows with Date but no URL)
+                        if (!mapped.post_id && mapped.published_at) {
+                            const dateStr = mapped.published_at.split('T')[0];
+                            mapped.post_id = `DAILY_TOTAL_${dateStr}`;
+                            mapped.title = `Total Diário: ${dateStr}`;
+                        }
+
+                        // Filter out empty rows or total rows
                         if (mapped.impressions === 0 && mapped.reactions === 0 && !mapped.post_id) return null;
                         return mapped;
                     }).filter(Boolean);
@@ -86,22 +100,20 @@ export const importService = {
                         results.metrics = [...results.metrics, ...metrics];
                         foundAny = true;
                     }
-                }
+                });
 
                 // --- 2. Detect Demographics Table ---
                 let demoHeaderIndex = -1;
-                for (let i = 0; i < Math.min(rows.length, 20); i++) {
+                for (let i = 0; i < Math.min(rows.length, 150); i++) {
                     const rowStr = JSON.stringify(rows[i] || []).toLowerCase();
                     if (rowStr.includes('principais dados demográficos') || (rowStr.includes('principais') && rowStr.includes('porcentagem'))) {
                         demoHeaderIndex = i;
-                        console.log('Found demographics header at index:', i, rows[i]);
                         break;
                     }
                 }
 
                 if (demoHeaderIndex !== -1) {
                     const dataRows = rows.slice(demoHeaderIndex + 1);
-                    console.log('Processing demographic rows:', dataRows.length);
                     const demographics = dataRows.map(row => {
                         if (!row || row.length < 3) return null;
                         const category = row[0];
@@ -109,24 +121,15 @@ export const importService = {
                         const percentage = row[2];
                         if (!category || !label || percentage === undefined) return null;
 
-                        // Parse percentage
                         let val = 0;
                         if (typeof percentage === 'string') {
                             const cleanStr = percentage.toLowerCase().replace(/%/g, '').replace(',', '.').trim();
-                            if (cleanStr.includes('menos de')) {
-                                val = 0.5; // Represent < 1% as 0.5%
-                            } else {
-                                val = parseFloat(cleanStr);
-                            }
+                            val = cleanStr.includes('menos de') ? 0.5 : parseFloat(cleanStr);
                         } else if (typeof percentage === 'number') {
-                            // ExcelJS typically returns raw numbers (e.g. 0.1 for 10%)
-                            // BUT sometimes it might be integers depending on formatting.
-                            // LinkedIn exports usually are 0.xxxx
-                            val = percentage * 100;
+                            val = percentage < 1 ? percentage * 100 : percentage;
                         }
 
                         if (isNaN(val)) val = 0;
-
                         return { category, label, value_percent: val };
                     }).filter(Boolean);
 
@@ -137,24 +140,20 @@ export const importService = {
                 }
 
                 // --- 3. Detect Followers Count ---
-                for (let i = 0; i < Math.min(rows.length, 50); i++) {
+                for (let i = 0; i < Math.min(rows.length, 150); i++) {
                     const rowStr = JSON.stringify(rows[i] || []).toLowerCase();
                     if (rowStr.includes('total de seguidores') || rowStr.includes('total followers')) {
-                        console.log('Found follower row candidate:', rowStr);
                         const row = rows[i];
                         const countCell = row.find(cell => {
                             if (!cell) return false;
                             const str = cell.toString();
-                            // Reject dates
                             if (str.match(/\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/)) return false;
-
                             const num = parseInt(str.replace(/\D/g, ''));
                             return !isNaN(num) && num > 0;
                         });
 
                         if (countCell) {
                             results.followers = parseInt(countCell.toString().replace(/\D/g, ''));
-                            console.log('Extracted followers count:', results.followers);
                             foundAny = true;
                         }
                     }
@@ -281,6 +280,13 @@ export const importService = {
             return new Date(val).toISOString();
         };
 
+        let post_id = getField(['Post link', 'URL da publicação', 'ID', 'URL']) || '';
+        // ExcelJS hyperlink object handling
+        if (post_id && typeof post_id === 'object') {
+            post_id = post_id.text || post_id.hyperlink || post_id.result || '';
+        }
+        post_id = post_id.toString();
+
         return {
             title: getField(['Share title', 'Título da publicação', 'Content', 'Conteúdo']) || 'Post sem título',
             published_at: parseDate(getField(['Date', 'Data', 'Data de publicação'])),
@@ -289,7 +295,7 @@ export const importService = {
             comments: Math.round(parseNum(getField(['Comments', 'Comentários']))),
             shares: Math.round(parseNum(getField(['Shares', 'Compartilhamentos', 'Reposts']))),
             engagement_rate: parseFloat(parseNum(getField(['Engagement rate', 'Taxa de engajamento']))).toFixed(2),
-            post_id: getField(['Post link', 'URL da publicação', 'ID', 'URL']) || ''
+            post_id: post_id
         };
     },
 

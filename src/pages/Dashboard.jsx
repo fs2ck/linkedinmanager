@@ -115,14 +115,27 @@ export default function Dashboard() {
             const prevFollowers = followersRes.data?.[1]?.follower_count || 0;
 
             if (data && data.length > 0) {
-                // Calculate Stats Card (Current Month vs Previous Month)
                 const now = new Date();
                 const currentMonthStart = startOfMonth(now);
                 const prevMonthStart = startOfMonth(subMonths(now, 1));
                 const prevMonthEnd = subDays(currentMonthStart, 1);
 
-                const currentMonthData = data.filter(m => new Date(m.published_at) >= currentMonthStart);
-                const prevMonthData = data.filter(m => {
+                const filteredPosts = data.filter(m => !m.post_id?.startsWith('DAILY_TOTAL_'));
+                const dailyTotals = data.filter(m => m.post_id?.startsWith('DAILY_TOTAL_'));
+                const hasDailyTotals = dailyTotals.length > 0;
+
+                // For metric cards, we prefer Daily Totals if available, otherwise fallback to posts
+                const sourceForTotals = hasDailyTotals ? dailyTotals : filteredPosts;
+
+                const currentMonthData = sourceForTotals.filter(m => new Date(m.published_at) >= currentMonthStart);
+                const prevMonthData = sourceForTotals.filter(m => {
+                    const d = new Date(m.published_at);
+                    return d >= prevMonthStart && d <= prevMonthEnd;
+                });
+
+                // Post Count always comes from the filtered posts
+                const currentMonthPosts = filteredPosts.filter(m => new Date(m.published_at) >= currentMonthStart);
+                const prevMonthPosts = filteredPosts.filter(m => {
                     const d = new Date(m.published_at);
                     return d >= prevMonthStart && d <= prevMonthEnd;
                 });
@@ -146,28 +159,30 @@ export default function Dashboard() {
                     : 0;
 
                 setMetrics({
-                    totalEngagement: currEng || data.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0) || 0,
+                    totalEngagement: currEng || sourceForTotals.reduce((acc, curr) => acc + curr.reactions + curr.comments + curr.shares, 0) || 0,
                     engagementChange: calculateChange(currEng, prevEng),
-                    totalImpressions: currImpr || data.reduce((acc, curr) => acc + curr.impressions, 0) || 0,
+                    totalImpressions: currImpr || sourceForTotals.reduce((acc, curr) => acc + curr.impressions, 0) || 0,
                     impressionsChange: calculateChange(currImpr, prevImpr),
-                    avgReach: Math.round(currReach || (data.length > 0 ? (data.reduce((acc, curr) => acc + curr.impressions, 0) / data.length) : 0)),
+                    avgReach: Math.round(currReach || (sourceForTotals.length > 0 ? (sourceForTotals.reduce((acc, curr) => acc + curr.impressions, 0) / sourceForTotals.length) : 0)),
                     reachChange: calculateChange(currReach, prevReach),
-                    totalPosts: currentMonthData.length || data.length,
-                    postsChange: calculateChange(currentMonthData.length, prevMonthData.length),
+                    totalPosts: currentMonthPosts.length,
+                    postsChange: calculateChange(currentMonthPosts.length, prevMonthPosts.length),
                     totalFollowers: latestFollowers || 0,
                     followersChange: calculateChange(latestFollowers, prevFollowers),
                 });
 
-                // Map all data, reversed
-                setRecentPosts([...data].reverse().map(m => ({
-                    id: m.id,
-                    title: m.post_id || 'Link indisponível',
-                    date: m.published_at,
-                    status: 'published',
-                    engagement: m.reactions + m.comments + m.shares,
-                    reach: m.impressions,
-                    url: m.post_id
-                })));
+                // Map all data, reversed (Excluding Daily Totals and invalid links from the posts table)
+                setRecentPosts([...data].reverse()
+                    .filter(m => m.post_id && !m.post_id.startsWith('DAILY_TOTAL_'))
+                    .map(m => ({
+                        id: m.id,
+                        title: m.post_id || 'Link indisponível',
+                        date: m.published_at,
+                        status: 'published',
+                        engagement: m.reactions + m.comments + m.shares,
+                        reach: m.impressions,
+                        url: m.post_id
+                    })));
             } else {
                 // Keep defaults but update followers
                 setMetrics(prev => ({
@@ -204,44 +219,55 @@ export default function Dashboard() {
 
     // Chart Data Aggregation Logic
     const impressionsChartData = useMemo(() => {
-        if (!allData.length) return [];
-
         const now = new Date();
-        let cutOff;
+        const aggregated = {};
 
-        // Determine how far back we should look based on the filter
+        // 1. Initialize range based on filter
         if (chartFilter === 'daily') {
-            cutOff = subDays(now, 14);
+            for (let i = 6; i >= 0; i--) {
+                const d = subDays(now, i);
+                const key = format(d, 'dd/MM');
+                aggregated[key] = { name: key, value: 0, sortKey: format(d, 'yyyyMMdd') };
+            }
         } else if (chartFilter === 'weekly') {
-            cutOff = subDays(now, 12 * 7);
+            for (let i = 3; i >= 0; i--) {
+                const d = subDays(now, i * 7);
+                const start = startOfWeek(d, { weekStartsOn: 1 });
+                const key = `Sem ${format(start, 'dd/MM')}`;
+                aggregated[key] = { name: key, value: 0, sortKey: format(start, 'yyyyMMdd') };
+            }
         } else if (chartFilter === 'monthly') {
-            cutOff = subMonths(now, 12);
+            for (let i = 5; i >= 0; i--) {
+                const d = subMonths(now, i);
+                const key = format(d, "MMM/yy", { locale: ptBR });
+                aggregated[key] = { name: key, value: 0, sortKey: format(d, 'yyyyMM') };
+            }
         }
 
-        const aggregated = {};
+        // 2. Populate with data
+        // Check if we have Daily Totals in the dataset
+        const hasDailyTotals = allData.some(m => m.post_id?.startsWith('DAILY_TOTAL_'));
+
         allData.forEach(m => {
             const date = new Date(m.published_at);
+            const isDailyTotal = m.post_id?.startsWith('DAILY_TOTAL_');
 
-            // Skip data older than the cutoff
-            if (date < cutOff) return;
+            // If we have Daily Totals, only use them for the chart to avoid double counting
+            if (hasDailyTotals && !isDailyTotal) return;
 
             let key;
-            let sortKey;
-
             if (chartFilter === 'daily') {
                 key = format(date, 'dd/MM');
-                sortKey = format(date, 'yyyyMMdd');
             } else if (chartFilter === 'weekly') {
                 const start = startOfWeek(date, { weekStartsOn: 1 });
                 key = `Sem ${format(start, 'dd/MM')}`;
-                sortKey = format(start, 'yyyyMMdd');
             } else if (chartFilter === 'monthly') {
                 key = format(date, "MMM/yy", { locale: ptBR });
-                sortKey = format(date, 'yyyyMM');
             }
 
-            if (!aggregated[key]) aggregated[key] = { name: key, value: 0, sortKey };
-            aggregated[key].value += m.impressions;
+            if (aggregated[key]) {
+                aggregated[key].value += m.impressions;
+            }
         });
 
         return Object.values(aggregated)
@@ -394,6 +420,7 @@ export default function Dashboard() {
                                     label="Impressões"
                                     hideHeader
                                     fullHeight
+                                    isPercentage={false}
                                 />
                             </div>
                         </Card>
