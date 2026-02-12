@@ -293,7 +293,7 @@ export default function Dashboard() {
             const { data: { user } } = await supabase.auth.getUser();
             const userId = user?.id || '00000000-0000-0000-0000-000000000000';
 
-            const parsedData = importService.parseLinkedInFile(file, content);
+            const parsedData = await importService.parseLinkedInFile(file, content);
             const result = await importService.saveImportedData(userId, file.name, file.size, parsedData);
 
             if (result.success) {

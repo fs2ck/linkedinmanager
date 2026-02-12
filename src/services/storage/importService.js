@@ -197,7 +197,7 @@ export const importService = {
         const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
         const dataRows = lines.slice(headerIndex + 1);
 
-        return dataRows.map(row => {
+        const metrics = dataRows.map(row => {
             if (!row.trim()) return null;
             const values = this.splitCSVLine(row);
             const entry = {};
@@ -206,6 +206,12 @@ export const importService = {
             });
             return this.mapLinkedInFields(entry);
         }).filter(Boolean);
+
+        return {
+            metrics,
+            demographics: [],
+            followers: null
+        };
     },
 
     splitCSVLine(line) {
