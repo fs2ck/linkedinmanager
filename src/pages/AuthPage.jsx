@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { LogIn, UserPlus, ShieldCheck } from 'lucide-react';
 import Logo from '../components/ui/Logo';
@@ -17,6 +17,7 @@ export default function AuthPage() {
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
+    const location = useLocation();
     const setSession = useAuthStore(state => state.setSession);
 
     const handleSubmit = async (e) => {
@@ -32,7 +33,8 @@ export default function AuthPage() {
                 const { session } = await authService.signIn(email, password);
                 setSession(session);
                 toast.success('Bem-vindo de volta!');
-                navigate('/');
+                const from = location.state?.from?.pathname || '/dashboard';
+                navigate(from, { replace: true });
             } else {
                 await authService.signUp(email, password);
                 toast.success('Cadastro realizado! Por favor, verifique seu e-mail.');

@@ -5,6 +5,7 @@ import Planner from './pages/Planner';
 import DraftStudio from './pages/DraftStudio';
 import PostEditor from './pages/PostEditor';
 import AuthPage from './pages/AuthPage';
+import LandingPage from './pages/LandingPage/LandingPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import { useEffect } from 'react';
 import { authService, supabase } from './services/storage/supabaseService';
@@ -87,10 +88,11 @@ export default function App() {
         />
         <Routes>
           {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<AuthPage />} />
 
           {/* Protected Routes */}
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/planner" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
           <Route path="/drafts" element={<ProtectedRoute><DraftStudio /></ProtectedRoute>} />
           <Route path="/editor" element={<ProtectedRoute><PostEditor /></ProtectedRoute>} />
