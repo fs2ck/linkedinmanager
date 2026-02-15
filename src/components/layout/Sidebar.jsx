@@ -12,7 +12,7 @@ import Logo from '../ui/Logo';
 import './Sidebar.css';
 
 const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Calendar, label: 'Planejamento', path: '/planner' },
     { icon: FileText, label: 'Rascunhos', path: '/drafts' },
     { icon: Edit3, label: 'Editor', path: '/editor' },
